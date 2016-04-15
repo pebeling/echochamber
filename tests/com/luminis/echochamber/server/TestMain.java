@@ -85,6 +85,36 @@ public class TestMain {
 	}
 
 	@Test
+	public void testDeleteAccountWithSession() throws Exception {
+		Account account = new Account("TEST_NAME", new byte[] {});
+		account.startSession();
+
+		account.delete();
+		assertEquals(account.session, null);
+	}
+
+	@Test
+	public void testDeleteAccountWithFriendData() throws Exception {
+		Account accountClark = new Account("Clark", new byte[] {});
+		Account accountBruce = new Account("Bruce", new byte[] {});
+		Account accountDiana = new Account("Diana", new byte[] {});
+		Account accountZod = new Account("Zod", new byte[] {});
+
+		accountClark.sendFriendRequest(accountBruce);
+		accountClark.sendFriendRequest(accountDiana);
+		accountDiana.acceptFriendRequest(accountClark);
+		accountZod.sendFriendRequest(accountClark);
+		accountClark.delete();
+
+		assertEquals(accountClark.friends, new ArrayList<Account>());
+		assertEquals(accountClark.pendingSentFriendRequests, new ArrayList<Account>());
+		assertEquals(accountClark.pendingReceivedFriendRequests, new ArrayList<Account>());
+		assertFalse(accountDiana.friends.contains(accountClark));
+		assertFalse(accountBruce.pendingReceivedFriendRequests.contains(accountClark));
+		assertFalse(accountZod.pendingSentFriendRequests.contains(accountClark));
+	}
+
+	@Test
 	public void testAccountPasswordCheck() throws Exception {
 		Account account = new Account("TEST_NAME", new byte[] {'P', 'W', 'D'});
 		assertTrue(account.checkPassword(new byte[] {'P', 'W', 'D'}));
@@ -164,6 +194,7 @@ public class TestMain {
 		Session session = account.session;
 
 		assertTrue(session.active);
-		assertEquals(session.currentChannel.getName(), Main.defaultChannel.getName());
+		assertEquals(session.currentChannel.getName(), Channel.defaultChannel.getName());
+		assertTrue(session.currentChannel.participants.contains(account));
 	}
 }

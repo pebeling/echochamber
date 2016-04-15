@@ -1,5 +1,7 @@
 package com.luminis.echochamber.server;
 
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.*;
@@ -11,6 +13,7 @@ class Security {
 	static public byte[] getNewSalt() {
 		byte salt[] = new byte[16];
 		random.nextBytes(salt);
+		random.nextInt();
 		return salt;
 	}
 
@@ -56,6 +59,15 @@ class Security {
 }
 
 class Account {
+	static final Account rootAccount;
+	static {
+		try {
+			rootAccount = new Account("SYSTEM", new byte[]{});
+		} catch (Exception e) {
+			throw new ExceptionInInitializerError(e);
+		}
+	}
+
 	private String nickname;
 	private byte[] salt;
 	private byte[] passwordHash;
@@ -84,9 +96,25 @@ class Account {
 		stopSession();
 		passwordHash = null;
 		active = false;
-		friends.forEach((friend) -> unfriend(friend));
-		pendingSentFriendRequests.forEach((friend) -> cancelFriendRequest(friend));
-		pendingReceivedFriendRequests.forEach((friend) -> refuseFriendRequest(friend));
+		// can't use friends.forEach((friend) -> unfriend(friend)); because of ConcurrentModificationException
+		Iterator<Account> friendIterator = friends.iterator();
+		while (friendIterator.hasNext()) {
+			Account friend = friendIterator.next();
+			friendIterator.remove();
+			friend.friends.remove(this);
+		}
+		friendIterator = pendingSentFriendRequests.iterator();
+		while (friendIterator.hasNext()) {
+			Account friend = friendIterator.next();
+			friendIterator.remove();
+			friend.pendingReceivedFriendRequests.remove(this);
+		}
+		friendIterator = pendingReceivedFriendRequests.iterator();
+		while (friendIterator.hasNext()) {
+			Account friend = friendIterator.next();
+			friendIterator.remove();
+			friend.pendingSentFriendRequests.remove(this);
+		}
 	}
 
 	public boolean checkPassword(byte[] pwd) throws Exception {
@@ -130,9 +158,9 @@ class Account {
 		account.friends.remove(this);
 	}
 
-	public void updateLastLoginDate(Date date) {
-		lastLoginDate = date;
-	}
+//	public void updateLastLoginDate(Date date) {
+//		lastLoginDate = date;
+//	}
 
 	public String getName() {
 		return nickname;
@@ -150,27 +178,31 @@ class Account {
 }
 
 class Session {
-	private Account account;
-	ArrayList<Message> chat;
+	Account account;
+	//ArrayList<Message> chat;
 	Channel currentChannel;
 	boolean active;
 
 	Session(Account account){
 		this.account = account;
-		chat = new ArrayList<>();
-		currentChannel = Main.defaultChannel;
+		//chatLog = new ArrayList<>();
+		Channel.defaultChannel.join(this);
 		active = true;
 	}
 
-	void addChat(String line) {
-		if(active) {
-			chat.add(new Message(account, currentChannel, line));
-		}
+//	void addChat(String line) {
+//		if(active) {
+//			chatLog.add(new Message(account, currentChannel, line));
+//		}
+//	}
+
+	void createChannel(String newChannel){
+
 	}
 
-	void switchChannel(Channel newChannel) {
+	void switchChannel(Channel toChannel) {
 		if(active) {
-			currentChannel = newChannel;
+			currentChannel = toChannel;
 		}
 	}
 }
@@ -194,6 +226,8 @@ class Message {
 }
 
 class Channel {
+	static final Channel defaultChannel = new Channel("COMMON_ROOM", Account.rootAccount);
+
 	String name;
 	String createdBy;
 	ArrayList<Account> participants;
@@ -215,20 +249,27 @@ class Channel {
 	public String toString(){
 		return name;
 	}
+
+	public void join(Session joiningSession) {
+		participants.add(joiningSession.account);
+		joiningSession.currentChannel = this;
+	}
 }
 
 public class Main {
-	private static Account rootAccount;
-	static {
-		try {
-			rootAccount = new Account("SYSTEM", new byte[]{'#'});
-		} catch (Exception e) {
-			throw new ExceptionInInitializerError(e);
+	static ArrayList<UUID> idList = new ArrayList<>();
+	static private int port = 4444;
+	public static void main(String[] args) {
+		//boolean listening = true;
+
+		try (ServerSocket serverSocket = new ServerSocket(port)) {
+			System.out.println("Server started at " + new Date() + ".");
+			while (true) {
+				new ServerThread(serverSocket.accept()).start();
+			}
+		} catch (IOException e) {
+			System.err.println("Could not listen on port " + port);
+			System.exit(-1);
 		}
-	}
-	static Channel defaultChannel = new Channel("COMMON_ROOM", rootAccount);
-
-	public static void main(String[] args) throws Exception {
-
 	}
 }
