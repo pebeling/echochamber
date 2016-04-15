@@ -1,4 +1,4 @@
-package com.luminis.client;
+package com.luminis.echochamber.client;
 
 public class Main {
 

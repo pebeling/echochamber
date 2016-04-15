@@ -1,4 +1,4 @@
-package com.luminis.server;
+package com.luminis.echochamber.server;
 
 import java.util.*;
 
