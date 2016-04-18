@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.stream.Collectors;
 
 class Security {
 	final public static SecureRandom random = new SecureRandom();
@@ -256,9 +257,38 @@ class Channel {
 	}
 }
 
+class SimpleChannel {
+	private ArrayList<ServerThread> connectedSessions;
+
+	SimpleChannel() {
+		connectedSessions = new ArrayList<>();
+	}
+
+	public void subscribeToChannel(ServerThread serverThread) {
+		connectedSessions.add(serverThread);
+		broadcast("User \'" + serverThread.nickName + "\' joined the channel", serverThread);
+	}
+
+	public void unSubscribeToChannel(ServerThread serverThread) {
+		broadcast("User \'" + serverThread.nickName + "\' left the channel", serverThread);
+		connectedSessions.remove(serverThread);
+	}
+
+	public void broadcast(String argument, ServerThread sender) {
+		connectedSessions.stream().forEach(session -> {
+			session.message("User \'" + sender.nickName + "\' shouts: " + argument);
+		});
+	}
+
+	public ArrayList<String> listSessions() {
+		return connectedSessions.stream().map(session -> session.nickName).collect(Collectors.toCollection(ArrayList::new));
+	}
+}
+
 public class Server {
 	private int port;
 	ArrayList<UUID> idList = new ArrayList<>();
+	SimpleChannel channel = new SimpleChannel();
 
 	Server(int port) {
 		this.port = port;

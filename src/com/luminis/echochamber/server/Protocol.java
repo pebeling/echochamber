@@ -5,12 +5,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 enum Command {
-	NICK     ("nick",  "Sets the clients nickname"),
-	EXIT     ("exit",  "Ends the chat session"),
-	LIST     ("list",  "List all participant"),
-	MESSAGE  ("message",   "Sends a message to a specific participant"),
-	SHOUT    ("shout", "Sends a message to all in the channel (default)"),
-	HELP     ("help",  "Either lists all available commands or gives info on a specific command");
+	NICK	("nick",	"Sets the nickname and connects to the default channel"),
+	EXIT	("exit",	"Ends the chat session"),
+	LIST	("list",	"List all participants"),
+	MESSAGE	("message",	"Sends a message to a specific participant"),
+	SHOUT	("shout",	"Sends a message to all in the channel (default)"),
+	HELP	("help",	"Either lists all available commands or gives info on a specific command");
 
 	String commandString, description;
 	Command(String command, String description){
@@ -41,6 +41,12 @@ enum SessionState {
 
 public class Protocol {
 	private SessionState state = SessionState.NOT_CONFIGURED;
+	private ServerThread clientOnServer;
+
+	Protocol (ServerThread clientOnServer) {
+		this.clientOnServer = clientOnServer;
+	}
+
 	String evaluateInput(String input) {
 		String pattern = "^\\s*(/([^\\s]*)\\s*)?(.*)";
 		Pattern regex = Pattern.compile(pattern);
@@ -61,18 +67,37 @@ public class Protocol {
 			}
 		}
 		if (command == null && enteredCommand != null) return "Invalid command: " + enteredCommand.toLowerCase() + ".";
-		else if (command == null ) command = Command.SHOUT;
+		else if (command == null && state == SessionState.CONFIGURED) command = Command.SHOUT;
+		else if (command == null && state == SessionState.NOT_CONFIGURED) {
+			command = Command.HELP;
+			argument = "";
+		}
 
 		switch(command) {
 			case NICK :
-				state = SessionState.CONFIGURED;
-				return "Nickname set to: " + argument;
+				if (!argument.equals("")) {
+					state = SessionState.CONFIGURED;
+					clientOnServer.nickName = argument;
+					clientOnServer.connectToChannel();
+					return "";
+				}
+				else {
+					return "Missing argument" + argument;
+				}
 			case EXIT :
 				return null;
-			case MESSAGE:
-				return argument;
+			case LIST :
+				String list = "";
+				for (String session : clientOnServer.listSessions()){
+					if (!list.equals("")) {
+						list += ", ";
+					}
+					list += session;
+				}
+				return list;
 			case SHOUT :
-				return argument;
+				clientOnServer.broadcastToChannel(argument);
+				return "";
 			case HELP :
 				String availableCommands = "";
 				if(argument.equals("")) {
@@ -80,7 +105,7 @@ public class Protocol {
 						if (!availableCommands.equals("")) {
 							availableCommands += ", ";
 						}
-						availableCommands += c.commandString;
+						availableCommands += "/" + c.commandString;
 					}
 					return "Available commands: " + availableCommands;
 				} else {
@@ -104,7 +129,12 @@ public class Protocol {
 		};
 
 		String msg = "";
-		for (String s : lines) msg += s + "\n";
+		for (String s : lines) {
+			if (!msg.equals("")) {
+				msg += "\n";
+			}
+			msg += s;
+		}
 		return msg;
 	}
 }

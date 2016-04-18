@@ -9,15 +9,22 @@ import static java.lang.System.exit;
 
 public class Main {
     static int serverPort = 4444;
-    static String serverAdress = "127.0.0.1";
 
     public static void main(String[] args) throws Exception {
+		if (args.length != 1) {
+			System.err.println(
+					"Usage: java EchoChamber <host name>");
+			System.exit(1);
+		}
+
+		String hostName = args[0];
+
 		System.out.println("Client started!");
 		PrintWriter out = null;
 		BufferedReader in = null;
 
 		try {
-			Socket socket = new Socket(serverAdress, serverPort);
+			Socket socket = new Socket(hostName, serverPort);
 			out = new PrintWriter(socket.getOutputStream(), true);
 			in = new BufferedReader(
                     new InputStreamReader(socket.getInputStream()));
@@ -30,7 +37,7 @@ public class Main {
 		String fromServer;
 
 		while ((fromServer = in.readLine()) != null) {
-			System.out.println("> " + fromServer);
+			System.out.println("< " + fromServer);
 		}
 		input.stop();
     }
@@ -57,6 +64,7 @@ class InputReader implements Runnable {
 		String lastInput;
 		while (!stopped) {
 			try {
+				//System.out.print("> ");
 				lastInput = stdIn.readLine();
 				Main.inputHandler(lastInput, out);
 			} catch(Exception e) {

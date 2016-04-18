@@ -5,16 +5,21 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.UUID;
 
 public class ServerThread extends Thread {
 	private Socket socket = null;
 	private Server server;
+	private SimpleChannel channel;
+	private PrintWriter toClient;
+	public String nickName;
 
 	public ServerThread(Socket socket, Server server) {
 		super("EchoChamberServerThread");
 		this.socket = socket;
 		this.server = server;
+		channel = server.channel;
 	}
 
 	public void run() {
@@ -24,39 +29,61 @@ public class ServerThread extends Thread {
 
 			System.out.println("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has connected to server.");
 
-			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-			BufferedReader in = new BufferedReader(
+			toClient = new PrintWriter(socket.getOutputStream(), true);
+			BufferedReader fromClient = new BufferedReader(
 					new InputStreamReader(socket.getInputStream())
 			);
 			String inputLine, outputLine;
-			Protocol protocol = new Protocol();
+			Protocol protocol = new Protocol(this);
 
-			out.println(protocol.welcomeMessage());
+			toClient.println(protocol.welcomeMessage());
 
 			while (true) {
-				inputLine = in.readLine();
+				inputLine = fromClient.readLine();
 				if (inputLine == null) {
 					System.out.println("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has disconnected from server");
-					out.println("Disconnected by client");
+					toClient.println("Disconnected by client");
+					disconnectFromChannel();
 					break;
 				} else {
 					outputLine = protocol.evaluateInput(inputLine);
 					if (outputLine == null) {
 						System.out.println("Server has disconnected from client " + id + ".");
-						out.println("Disconnected by server");
+						toClient.println("Disconnected by server");
+						disconnectFromChannel();
 						break;
 					}
-					else
-						out.println(outputLine);
+					else if (!outputLine.equals("")) {
+						toClient.println(outputLine);
+					}
 				}
 			}
 			server.idList.remove(id);
-			out.close();
-			in.close();
+			toClient.close();
+			fromClient.close();
 			socket.close();
 			socket.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	void connectToChannel() {
+		channel.subscribeToChannel(this);
+	}
+
+	void disconnectFromChannel() {
+		channel.unSubscribeToChannel(this);
+	}
+
+	void broadcastToChannel(String argument) {
+		channel.broadcast(argument, this);
+	}
+
+	void message(String message) {
+		toClient.println(message);
+	}
+
+	ArrayList<String> listSessions() {
+		return channel.listSessions();
 	}
 }
