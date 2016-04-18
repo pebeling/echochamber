@@ -256,14 +256,14 @@ class Channel {
 	}
 }
 
-public class Main {
+public class Server {
 	static ArrayList<UUID> idList = new ArrayList<>();
 	static private int port = 4444;
 	public static void main(String[] args) {
 		//boolean listening = true;
 
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
-			System.out.println("Server started at " + new Date() + ".");
+			System.out.println("Main started at " + new Date() + ".");
 			while (true) {
 				new ServerThread(serverSocket.accept()).start();
 			}
