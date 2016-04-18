@@ -10,8 +10,8 @@ import java.util.UUID;
 
 public class ServerThread extends Thread {
 	private Socket socket = null;
-	private Server server;
-	private SimpleChannel channel;
+	Server server;
+	SimpleChannel channel;
 	private PrintWriter toClient;
 	public String nickName;
 
@@ -27,7 +27,7 @@ public class ServerThread extends Thread {
 			UUID id = UUID.randomUUID();
 			server.idList.add(id);
 
-			System.out.println("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has connected to server.");
+			server.serverConsole("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has connected to server.");
 
 			toClient = new PrintWriter(socket.getOutputStream(), true);
 			BufferedReader fromClient = new BufferedReader(
@@ -41,20 +41,19 @@ public class ServerThread extends Thread {
 			while (true) {
 				inputLine = fromClient.readLine();
 				if (inputLine == null) {
-					System.out.println("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has disconnected from server");
+					server.serverConsole("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has disconnected from server");
 					toClient.println("Disconnected by client");
 					disconnectFromChannel();
 					break;
 				} else {
 					outputLine = protocol.evaluateInput(inputLine);
 					if (outputLine == null) {
-						System.out.println("Server has disconnected from client " + id + ".");
+						server.serverConsole("Server has closed the connection to client " + id + ".");
 						toClient.println("Disconnected by server");
-						disconnectFromChannel();
 						break;
 					}
 					else if (!outputLine.equals("")) {
-						toClient.println(outputLine);
+						toClient.println(TextColors.colorServermessage(outputLine));
 					}
 				}
 			}
@@ -62,7 +61,7 @@ public class ServerThread extends Thread {
 			toClient.close();
 			fromClient.close();
 			socket.close();
-			socket.close();
+			server.numberOfConnectedClients--;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -76,7 +75,7 @@ public class ServerThread extends Thread {
 	}
 
 	void broadcastToChannel(String argument) {
-		channel.broadcast(argument, this);
+		channel.shout(argument, this);
 	}
 
 	void message(String message) {

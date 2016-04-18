@@ -1,7 +1,9 @@
 package com.luminis.echochamber.server;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.*;
@@ -266,18 +268,32 @@ class SimpleChannel {
 
 	public void subscribeToChannel(ServerThread serverThread) {
 		connectedSessions.add(serverThread);
-		broadcast("User \'" + serverThread.nickName + "\' joined the channel", serverThread);
+		broadcast("User " + TextColors.colorUserName(serverThread.nickName) + " joined the channel");
 	}
 
 	public void unSubscribeToChannel(ServerThread serverThread) {
-		broadcast("User \'" + serverThread.nickName + "\' left the channel", serverThread);
-		connectedSessions.remove(serverThread);
+		if (connectedSessions.contains(serverThread)) {
+			broadcast("User " + TextColors.colorUserName(serverThread.nickName) + " left the channel");
+			connectedSessions.remove(serverThread);
+		}
 	}
 
-	public void broadcast(String argument, ServerThread sender) {
-		connectedSessions.stream().forEach(session -> {
-			session.message("User \'" + sender.nickName + "\' shouts: " + argument);
-		});
+	public void shout(String message, ServerThread sender) {
+		broadcast(TextColors.colorUserName(sender.nickName) + "> " + message, sender);
+	}
+
+	private void broadcast(String message, ServerThread sender) {
+		connectedSessions.stream().filter(
+				session -> !session.equals(sender)
+		).forEach(
+				session -> session.message(message)
+		);
+	}
+
+	private void broadcast(String message) {
+		connectedSessions.stream().forEach(
+				session -> session.message(message)
+		);
 	}
 
 	public ArrayList<String> listSessions() {
@@ -289,6 +305,9 @@ public class Server {
 	private int port;
 	ArrayList<UUID> idList = new ArrayList<>();
 	SimpleChannel channel = new SimpleChannel();
+	int maxConnectedClients = 2;
+	int numberOfConnectedClients = 0;
+	//int clientTimeOut = 5000; //900000; // 15 minutes in ms
 
 	Server(int port) {
 		this.port = port;
@@ -297,13 +316,29 @@ public class Server {
 	void start() {
 		//boolean listening = true;
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
-			System.out.println("Server started " + new Date() + ".");
+			serverConsole("Server started.");
 			while (true) {
-				new ServerThread(serverSocket.accept(), this).start();
+				Socket socket = serverSocket.accept();
+				numberOfConnectedClients++;
+				if (numberOfConnectedClients > maxConnectedClients) {
+					PrintWriter toClient = new PrintWriter(socket.getOutputStream(), true);
+					toClient.println("Too many connections. Closing connection");
+					toClient.close();
+					socket.close();
+					serverConsole("Maximum number of simultaneous connections reached");
+					numberOfConnectedClients--;
+				}
+				else {
+					new ServerThread(socket, this).start();
+				}
 			}
 		} catch (IOException e) {
 			System.err.println("Could not listen on port " + port);
 			System.exit(-1);
 		}
+	}
+
+	void serverConsole(String output) {
+		System.out.println(new Date() + ": " + output);
 	}
 }

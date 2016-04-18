@@ -37,7 +37,7 @@ public class Main {
 		String fromServer;
 
 		while ((fromServer = in.readLine()) != null) {
-			System.out.println("< " + fromServer);
+			System.out.println(fromServer);
 		}
 		input.stop();
     }
@@ -64,7 +64,6 @@ class InputReader implements Runnable {
 		String lastInput;
 		while (!stopped) {
 			try {
-				//System.out.print("> ");
 				lastInput = stdIn.readLine();
 				Main.inputHandler(lastInput, out);
 			} catch(Exception e) {

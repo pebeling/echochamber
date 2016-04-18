@@ -6,9 +6,9 @@ import java.util.regex.Pattern;
 
 enum Command {
 	NICK	("nick",	"Sets the nickname and connects to the default channel"),
-	EXIT	("exit",	"Ends the chat session"),
-	LIST	("list",	"List all participants"),
-	MESSAGE	("message",	"Sends a message to a specific participant"),
+	EXIT	("exit",	"Ends the session"),
+	LIST	("list",	"Lists all online users"),
+	MESSAGE	("message",	"Sends a message to a specific user"),
 	SHOUT	("shout",	"Sends a message to all in the channel (default)"),
 	HELP	("help",	"Either lists all available commands or gives info on a specific command");
 
@@ -76,15 +76,20 @@ public class Protocol {
 		switch(command) {
 			case NICK :
 				if (!argument.equals("")) {
-					state = SessionState.CONFIGURED;
-					clientOnServer.nickName = argument;
-					clientOnServer.connectToChannel();
-					return "";
+					if (clientOnServer.channel.listSessions().contains(argument)) {
+						return "Error: Nickname " + argument + " already in use";
+					} else {
+						state = SessionState.CONFIGURED;
+						clientOnServer.nickName = argument;
+						clientOnServer.connectToChannel();
+						return "";
+					}
 				}
 				else {
-					return "Missing argument" + argument;
+					return "Error: Missing argument" + argument;
 				}
 			case EXIT :
+				if (state == SessionState.CONFIGURED) clientOnServer.disconnectFromChannel();
 				return null;
 			case LIST :
 				String list = "";
@@ -111,7 +116,7 @@ public class Protocol {
 				} else {
 					Command foundCommand = Command.lookUp(argument);
 					if (foundCommand == null) {
-						return "No such command \"" + argument + "\"";
+						return "Error: No such command \"" + argument + "\"";
 					} else {
 						return foundCommand.description;
 					}
@@ -122,10 +127,12 @@ public class Protocol {
 
 	public String welcomeMessage() {
 		String[] lines = new String[]{
+				"--------------------------------------------------",
 				"Welcome to the EchoChamber chat server!",
 				"Local time is: " + new Date(),
-				"Choose your nickname using /nick <nickname>.",
-				"End session using /exit"
+				"You are client " + clientOnServer.server.numberOfConnectedClients + " of " + clientOnServer.server.maxConnectedClients + ".",
+				"Use /help or /help <command> for more information.",
+				"--------------------------------------------------"
 		};
 
 		String msg = "";
@@ -135,6 +142,6 @@ public class Protocol {
 			}
 			msg += s;
 		}
-		return msg;
+		return TextColors.colorServermessage(msg);
 	}
 }
