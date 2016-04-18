@@ -69,9 +69,9 @@ class Account {
 	}
 
 	private String nickname;
-	private byte[] salt;
-	private byte[] passwordHash;
-	final Date creationDate;
+//	private byte[] salt;
+//	private byte[] passwordHash;
+//	final Date creationDate;
 	Date lastLoginDate;
 	ArrayList<Account> friends;
 	ArrayList<Account> pendingSentFriendRequests;
@@ -81,9 +81,9 @@ class Account {
 
 	Account(String name, byte[] pwd) throws Exception {
 		nickname = name;
-		salt = Security.getNewSalt();
-		passwordHash = Security.calculateHash(Security.saltPassword(salt, pwd));
-		creationDate = new Date();
+//		salt = Security.getNewSalt();
+//		passwordHash = Security.calculateHash(Security.saltPassword(salt, pwd));
+//		creationDate = new Date();
 		lastLoginDate = null;
 		friends = new ArrayList<>();
 		pendingSentFriendRequests = new ArrayList<>();
@@ -94,7 +94,7 @@ class Account {
 
 	void delete() {
 		stopSession();
-		passwordHash = null;
+//		passwordHash = null;
 		active = false;
 		// can't use friends.forEach((friend) -> unfriend(friend)); because of ConcurrentModificationException
 		Iterator<Account> friendIterator = friends.iterator();
@@ -117,15 +117,15 @@ class Account {
 		}
 	}
 
-	public boolean checkPassword(byte[] pwd) throws Exception {
-		byte[] hashedPassword = Security.calculateHash(Security.saltPassword(salt, pwd));
-
-		boolean passwordMatch = passwordHash != null && hashedPassword.length == passwordHash.length;
-		for(int i=0; i < hashedPassword.length; i++) {
-			passwordMatch = passwordMatch && (hashedPassword[i] == passwordHash[i]);
-		}
-		return passwordMatch;
-	}
+//	public boolean checkPassword(byte[] pwd) throws Exception {
+//		byte[] hashedPassword = Security.calculateHash(Security.saltPassword(salt, pwd));
+//
+//		boolean passwordMatch = passwordHash != null && hashedPassword.length == passwordHash.length;
+//		for(int i=0; i < hashedPassword.length; i++) {
+//			passwordMatch = passwordMatch && (hashedPassword[i] == passwordHash[i]);
+//		}
+//		return passwordMatch;
+//	}
 
 	public void sendFriendRequest(Account account) {
 		if (!friends.contains(account) && account != this) {
@@ -257,15 +257,19 @@ class Channel {
 }
 
 public class Server {
-	static ArrayList<UUID> idList = new ArrayList<>();
-	static private int port = 4444;
-	public static void main(String[] args) {
-		//boolean listening = true;
+	private int port;
+	ArrayList<UUID> idList = new ArrayList<>();
 
+	Server(int port) {
+		this.port = port;
+	}
+
+	void start() {
+		//boolean listening = true;
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
-			System.out.println("Main started at " + new Date() + ".");
+			System.out.println("Server started " + new Date() + ".");
 			while (true) {
-				new ServerThread(serverSocket.accept()).start();
+				new ServerThread(serverSocket.accept(), this).start();
 			}
 		} catch (IOException e) {
 			System.err.println("Could not listen on port " + port);

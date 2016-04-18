@@ -5,37 +5,68 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
+import static java.lang.System.exit;
+
 public class Main {
     static int serverPort = 4444;
     static String serverAdress = "127.0.0.1";
-    public static void main(String[] args) throws Exception {
 
-		System.out.println("Client");
-		BufferedReader in = null;
+    public static void main(String[] args) throws Exception {
+		System.out.println("Client started!");
 		PrintWriter out = null;
-        try {
-            Socket kkSocket = new Socket(serverAdress, serverPort);
-            out = new PrintWriter(kkSocket.getOutputStream(), true);
-            in = new BufferedReader(
-                    new InputStreamReader(kkSocket.getInputStream()));
+		BufferedReader in = null;
+
+		try {
+			Socket socket = new Socket(serverAdress, serverPort);
+			out = new PrintWriter(socket.getOutputStream(), true);
+			in = new BufferedReader(
+                    new InputStreamReader(socket.getInputStream()));
 		} catch(Exception e) {
-			System.err.println("Error");
+			System.err.println("Error connecting to server.");
+			exit(0);
 		}
-		BufferedReader stdIn =
-				new BufferedReader(new InputStreamReader(System.in));
+
+		InputReader input = new InputReader(out);
 		String fromServer;
-		String fromUser;
 
 		while ((fromServer = in.readLine()) != null) {
-			System.out.println("Server: " + fromServer);
-			if (fromServer.equals("Bye."))
-				break;
+			System.out.println("> " + fromServer);
+		}
+		input.stop();
+    }
 
-			fromUser = stdIn.readLine();
-			if (fromUser != null) {
-				System.out.println("Client: " + fromUser);
-				out.println(fromUser);
+	static void inputHandler(String input, PrintWriter out) {
+		out.println(input);
+	}
+}
+
+class InputReader implements Runnable {
+	private BufferedReader stdIn;
+	private boolean stopped = false;
+	private PrintWriter out;
+
+	InputReader(PrintWriter out) {
+		this.out = out;
+		stdIn = new BufferedReader(new InputStreamReader(System.in));
+		Thread t = new Thread(this);
+		t.start();
+	}
+
+	@Override
+	public void run() {
+		String lastInput;
+		while (!stopped) {
+			try {
+				lastInput = stdIn.readLine();
+				Main.inputHandler(lastInput, out);
+			} catch(Exception e) {
+				System.err.println("Error: can't read from keyboard.");
+				exit(0);
 			}
 		}
-    }
+	}
+
+	void stop() {
+		stopped = true;
+	}
 }

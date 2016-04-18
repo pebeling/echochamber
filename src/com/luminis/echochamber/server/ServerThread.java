@@ -9,16 +9,18 @@ import java.util.UUID;
 
 public class ServerThread extends Thread {
 	private Socket socket = null;
+	private Server server;
 
-	public ServerThread(Socket socket) {
+	public ServerThread(Socket socket, Server server) {
 		super("EchoChamberServerThread");
 		this.socket = socket;
+		this.server = server;
 	}
 
 	public void run() {
 		try {
 			UUID id = UUID.randomUUID();
-			Main.idList.add(id);
+			server.idList.add(id);
 
 			System.out.println("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has connected to server.");
 
@@ -48,7 +50,7 @@ public class ServerThread extends Thread {
 						out.println(outputLine);
 				}
 			}
-			Main.idList.remove(id);
+			server.idList.remove(id);
 			out.close();
 			in.close();
 			socket.close();
