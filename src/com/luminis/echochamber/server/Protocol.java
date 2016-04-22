@@ -122,6 +122,30 @@ public class Protocol {
 		if (inputArgumentList.length > Math.max(command.maxArgs, command.minArgs)) return "Error: Too many arguments\n" + command.getUsage();
 		if (inputArgumentList.length < command.minArgs) return "Error: Missing arguments\n" + command.getUsage();
 
+		return executeCommand(command, inputArgumentList);
+	}
+
+	public String welcomeMessage() {
+		String[] lines = new String[]{
+				"--------------------------------------------------",
+				"Welcome to the EchoChamber chat server!",
+				"Local time is: " + new Date(),
+				"You are client " + clientSession.server.numberOfConnectedClients + " of " + clientSession.server.maxConnectedClients + ".",
+				"Use /help or /help <command> for more information.",
+				"--------------------------------------------------"
+		};
+
+		String msg = "";
+		for (String s : lines) {
+			if (!msg.equals("")) {
+				msg += "\n";
+			}
+			msg += s;
+		}
+		return TextColors.colorServermessage(msg);
+	}
+
+	private String executeCommand(Command command, String[] inputArgumentList) {
 		Account account;
 
 		switch(command) {
@@ -167,7 +191,7 @@ public class Protocol {
 				}
 
 			case SHOUT :
-				if (!inputArguments.equals("")) clientSession.broadcastToChannel(inputArguments);
+				clientSession.broadcastToChannel(inputArgumentList[0]);
 				return "";
 
 			case HELP :
@@ -185,7 +209,7 @@ public class Protocol {
 					if (foundCommand == null) {
 						return "Error: No such command \"" + inputArgumentList[0] + "\"";
 					} else {
-						return foundCommand.description;
+						return foundCommand.getDescription();
 					}
 				}
 
@@ -300,32 +324,5 @@ public class Protocol {
 				}
 		}
 		return "Error: command '" + command.commandString + "' not implemented";
-	}
-
-	public String welcomeMessage() {
-		String[] lines = new String[]{
-				"--------------------------------------------------",
-				"Welcome to the EchoChamber chat server!",
-				"Local time is: " + new Date(),
-				"You are client " + clientSession.server.numberOfConnectedClients + " of " + clientSession.server.maxConnectedClients + ".",
-				"Use /help or /help <command> for more information.",
-				"--------------------------------------------------"
-		};
-
-		String msg = "";
-		for (String s : lines) {
-			if (!msg.equals("")) {
-				msg += "\n";
-			}
-			msg += s;
-		}
-		return TextColors.colorServermessage(msg);
-	}
-
-	public void printBytes(byte[] bytes){
-		for (byte b : bytes) {
-			System.out.print(b + ", ");
-		}
-		System.out.print("\n");
 	}
 }
