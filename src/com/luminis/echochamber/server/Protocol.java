@@ -12,17 +12,19 @@ enum Command {
 	SETNAME		("setname",	1, 1, "<name>", 			"Sets a nickname and connects to the default channel as a temporary account"),
 	SETPWD		("setpwd",	1, 1, "<password>", 		"creates new account"														),
 	LOGIN		("login",	2, 2, "<name> <password>", 	"Log in to your account"													),
-	EXIT		("exit",	0, 0, "", 					"Logs out or ends the current session"										),
+	LOGOUT		("logout",	0, 0, "", 					"Logs out"																	),
+	EXIT		("exit",	0, 0, "", 					"Ends the current session"													),
 	USERS		("users",	0, 1, "[<channel>]", 		"Lists online users"														),
 	WHISPER		("whisper",	2, 0, "<user> <message>",	"Sends a message to a specific user"										),
 	SHOUT		("shout",	1, 0, "<message>", 			"Sends a message to all in the channel (default)"							),
 	DELETE		("delete", 	0, 1, "", 					"Deletes your account"														),
+	CANCEL		("cancel", 	0, 0, "", 					"Cancels delete"															),
 	FRIENDS		("friends", 0, 0, "", 					"List friends and friend request statuses"									),
 	BEFRIEND	("befriend",1, 1, "<user>", 			"Sends someone a friend request"											),
 	UNFRIEND	("unfriend",1, 1, "<user>", 			"Removes someone from your friend list"										),
 	ACCEPT		("accept", 	1, 1, "<user>", 			"Accept a friend request"													),
 	REFUSE		("refuse", 	1, 1, "<user>", 			"Refuse a friend request"													),
-	CANCEL		("cancel", 	1, 1, "<user>", 			"Cancels a pending friend request"											),;
+	FORGET		("forget", 	1, 1, "<user>", 			"Forgets a sent friend request"												),;
 
 	String commandString, usage, description;
 	int minArgs, maxArgs;
@@ -65,9 +67,9 @@ enum Command {
 
 enum SessionState {
 	ENTRANCE	(new Command[]{EXIT, HELP, SETNAME, LOGIN}),
-	TRANSIENT	(new Command[]{EXIT, HELP, WHISPER, SHOUT, USERS, SETPWD}),
-	LOGGED_IN	(new Command[]{EXIT, HELP, WHISPER, SHOUT, USERS, BEFRIEND, UNFRIEND, FRIENDS, ACCEPT, REFUSE, CANCEL, DELETE}),
-	DELETE_CONF	(new Command[]{EXIT, HELP, DELETE});
+	TRANSIENT	(new Command[]{EXIT, HELP, LOGOUT, WHISPER, SHOUT, USERS, SETPWD}),
+	LOGGED_IN	(new Command[]{EXIT, HELP, LOGOUT, WHISPER, SHOUT, USERS, BEFRIEND, UNFRIEND, FRIENDS, ACCEPT, REFUSE, FORGET, DELETE}),
+	DELETE_CONF	(new Command[]{EXIT, HELP, CANCEL, DELETE});
 	
 	Command[] validCommands;
 	SessionState(Command[] validCommands){
@@ -130,7 +132,7 @@ class Protocol {
 				"--------------------------------------------------",
 				"Welcome to the EchoChamber chat server!",
 				"Local time is: " + new Date(),
-				"You are client " + clientSession.server.numberOfConnectedClients + " of " + Server.maxConnectedClients + ".",
+				"You are client " + clientSession.server.numberOfConnectedClients() + " of " + Server.maxConnectedClients + ".",
 				"Use /help or /help <command> for more information.",
 				"--------------------------------------------------"
 		};
@@ -186,7 +188,7 @@ class Protocol {
 			case LOGIN :
 				account = clientSession.server.getAccountByName(inputArgumentList[0]);
 				if (account != null && account.checkPassword(inputArgumentList[1].getBytes())) {
-					if (account.online) {
+					if (account.isOnline()) {
 						return "Account already logged in";
 					}
 					else {
@@ -200,13 +202,14 @@ class Protocol {
 					return "Incorrect username or password";
 				}
 
+			case LOGOUT:
+				clientSession.disconnectFromChannel();
+				clientSession.unSetAccount();
+				state = ENTRANCE;
+				return "Returning to Entrance";
+
 			case EXIT :
-				if (state == TRANSIENT || state == LOGGED_IN) {
-					clientSession.disconnectFromChannel();
-					clientSession.unSetAccount();
-					state = ENTRANCE;
-					return "Returning to Entrance";
-				}  else return null;
+				return null;
 
 			case USERS:
 				if(inputArgumentList.length == 0) {
@@ -215,7 +218,7 @@ class Protocol {
 						if (!list.equals("")) {
 							list += "\n";
 						}
-						list += session.account.getName() + " (" + (session.account.temporary ? "transient" : "permanent") +")";
+						list += session.account.getName() + " (" + (session.account.isPermanent() ? "permanent" : "transient") +")";
 					}
 					return list;
 				} else return "??"; // TODO: implement once users can create channels
@@ -224,7 +227,7 @@ class Protocol {
 				account = clientSession.server.getAccountByName(inputArgumentList[0]);
 				if (account == null){
 					return "No account with username " + inputArgumentList[0] + " found";
-				} else if (account.online) {
+				} else if (account.isOnline()) {
 					account.currentSession.message(clientSession.account.getName() + " whispers: " + inputArgumentList[1]);
 					return "You whispered a message to " + account.getName();
 				} else {
@@ -255,11 +258,15 @@ class Protocol {
 				}
 				break;
 
+			case CANCEL:
+				state = LOGGED_IN;
+				return "Delete cancelled";
+
 			case FRIENDS :
 				String friendStatus = "";
 				friendStatus += "Current friends:\n";
 				for (Account friend : clientSession.account.friends) {
-					friendStatus += "\t" + friend.getName() + " (" + (friend.online ? friend.currentSession.channel.name : "OFFLINE") + ") \n";
+					friendStatus += "\t" + friend.getName() + " (" + (friend.isOnline() ? friend.currentSession.channel : "OFFLINE") + ") \n";
 				}
 				friendStatus += "\n";
 				friendStatus += "Pending sent friend requests: \n";
@@ -277,7 +284,7 @@ class Protocol {
 				account = clientSession.server.getAccountByName(inputArgumentList[0]);
 				if (account == null){
 					return "No account with username " + inputArgumentList[0] + " found";
-				} else if (account.temporary) {
+				} else if (!account.isPermanent()) {
 					return "You can only send friend requests to permanent accounts";
 				} else if (account.equals(clientSession.account)) {
 					return "Get a life!";
@@ -319,7 +326,7 @@ class Protocol {
 					return "You refused " + account.getName() + "'s friend request";
 				}
 
-			case CANCEL :
+			case FORGET:
 				account = clientSession.server.getAccountByName(inputArgumentList[0]);
 				if (account == null){
 					return "No account with username " + inputArgumentList[0] + " found";
