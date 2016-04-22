@@ -8,14 +8,14 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.UUID;
 
-public class ServerThread extends Thread {
+public class Session extends Thread {
 	private Socket socket = null;
 	Server server;
-	SimpleChannel channel;
+	Channel channel;
 	private PrintWriter toClient;
 	public String nickName;
 
-	public ServerThread(Socket socket, Server server) {
+	public Session(Socket socket, Server server) {
 		super("EchoChamberServerThread");
 		this.socket = socket;
 		this.server = server;
