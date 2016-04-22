@@ -6,8 +6,8 @@ import java.security.SecureRandom;
 import java.util.UUID;
 
 class Security {
-	final public static SecureRandom random = new SecureRandom();
-	final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
+	final private static SecureRandom random = new SecureRandom();
+	final private static char[] hexArray = "0123456789ABCDEF".toCharArray();
 
 	static public byte[] getNewSalt() {
 		byte salt[] = new byte[16];
@@ -18,9 +18,7 @@ class Security {
 
 	static public byte[] saltPassword(byte[] salt, byte[] password){
 		byte[] saltedPwd = new byte[salt.length + password.length];
-		for (int i = 0; i < salt.length; i++){
-			saltedPwd[i] = salt[i];
-		}
+		System.arraycopy(salt, 0, saltedPwd, 0, salt.length);
 		for (int i = 0; i < password.length; i++){
 			saltedPwd[i + salt.length] = password[i];
 			password[i] = 0;

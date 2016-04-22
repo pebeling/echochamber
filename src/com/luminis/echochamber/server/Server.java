@@ -9,8 +9,8 @@ import java.util.stream.Collectors;
 
 class Account {
 	UUID id;
-	final Date creationDate;
-	Server server;
+	final private Date creationDate;
+	private Server server;
 	Session currentSession;
 
 	private String username;
@@ -29,7 +29,6 @@ class Account {
 		if (pwd != null) {
 			salt = Security.getNewSalt();
 			passwordHash = Security.calculateHash(Security.saltPassword(salt, pwd));
-			System.out.println(passwordHash);
 			temporary = false;
 
 			friends = new ArrayList<>();
@@ -170,10 +169,6 @@ class Account {
 		}
 	}
 
-	public void updateLastLoginDate(Date date) {
-		lastLoginDate = date;
-	}
-
 	public void makePermanent(Server server, byte[] pwd) {
 		if (temporary) {
 			salt = Security.getNewSalt();
@@ -199,11 +194,10 @@ class Channel {
 	}
 
 	public void subscribe(Session session) {
-		if (connectedSessions.contains(session)) {
-
+		if (!connectedSessions.contains(session)) {
+			connectedSessions.add(session);
+			broadcast("User " + TextColors.colorUserName(session.account.getName()) + " joined channel " + name);
 		}
-		connectedSessions.add(session);
-		broadcast("User " + TextColors.colorUserName(session.account.getName()) + " joined channel " + name);
 	}
 
 	public void unSubscribe(Session session) {
@@ -242,7 +236,7 @@ public class Server {
 	volatile int numberOfConnectedClients = 0;
 	volatile ArrayList<UUID> channelIDs;
 	volatile ArrayList<Account> accounts;
-	volatile ArrayList<Channel> channels;
+	volatile private ArrayList<Channel> channels;
 	static Channel defaultChannel;
 
 	Server(int port) {

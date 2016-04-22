@@ -130,7 +130,7 @@ public class Protocol {
 				"--------------------------------------------------",
 				"Welcome to the EchoChamber chat server!",
 				"Local time is: " + new Date(),
-				"You are client " + clientSession.server.numberOfConnectedClients + " of " + clientSession.server.maxConnectedClients + ".",
+				"You are client " + clientSession.server.numberOfConnectedClients + " of " + Server.maxConnectedClients + ".",
 				"Use /help or /help <command> for more information.",
 				"--------------------------------------------------"
 		};
@@ -156,7 +156,7 @@ public class Protocol {
 					return "Unable to create temporary account with nickname: " + inputArgumentList[0];
 				}
 				state = TRANSIENT;
-				clientSession.connectToChannel(clientSession.server.defaultChannel);
+				clientSession.connectToChannel(Server.defaultChannel);
 				return "";
 
 			case EXIT :
@@ -245,9 +245,10 @@ public class Protocol {
 					}
 					else {
 						clientSession.setAccount(account);
-						clientSession.connectToChannel(clientSession.server.defaultChannel);
+						clientSession.connectToChannel(Server.defaultChannel);
 						state = LOGGED_IN;
-						return "Login successful";
+						account.lastLoginDate = new Date();
+						return "Login successful. Last login: " + account.lastLoginDate;
 					}
 				} else {
 					return "Incorrect username or password";

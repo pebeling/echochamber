@@ -14,7 +14,7 @@ public class Session extends Thread {
 	Channel channel;
 	PrintWriter toClient;
 	Account account;
-	UUID id;
+	private UUID id;
 
 	public Session(Socket socket, Server server) {
 		super("EchoChamberSessionThread");
