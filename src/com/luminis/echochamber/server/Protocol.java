@@ -8,10 +8,10 @@ import static com.luminis.echochamber.server.Command.*;
 import static com.luminis.echochamber.server.SessionState.*;
 
 enum Command {
-	SETNAME		("setname",	1, 1, "<name>", 			"Sets a nickname and connects to the default channel"						),
+	SETNAME		("setname",	1, 1, "<name>", 			"Sets a nickname and connects to the default channel as a temporary account"),
 	EXIT		("exit",	0, 0, "", 					"Logs out or ends the current session"										),
 	USERS		("users",	0, 1, "[<channel>]", 		"Lists online users"														),
-	WHISPER("message",	2, 0, "<user> <message>",	"Sends a message to a specific user"										),
+	WHISPER		("whisper",	2, 0, "<user> <message>",	"Sends a message to a specific user"										),
 	SHOUT		("shout",	1, 0, "<message>", 			"Sends a message to all in the channel (default)"							),
 	HELP		("help",	0, 1, "[<command>]", 		"Either lists all available commands or gives info on a specific command"	),
 	LOGIN		("login",	2, 2, "<name> <password>", 	"Log in to your account"													),
@@ -21,8 +21,8 @@ enum Command {
 	ACCEPT		("accept", 	1, 1, "<user>", 			"Accept a friend request"													),
 	REFUSE		("refuse", 	1, 1, "<user>", 			"Refuse a friend request"													),
 	CANCEL		("cancel", 	1, 1, "<user>", 			"Cancels a pending friend request"											),
-	DELETE		("delete", 	0, 0, "", 					"Deletes your account"														),
-	SETPASS("account",	1, 1, "<password>", 		"creates new account"														);
+	DELETE		("delete", 	0, 1, "", 					"Deletes your account"														),
+	SETPWD		("setpwd",	1, 1, "<password>", 		"creates new account"														);
 
 	String commandString, usage, description;
 	int minArgs, maxArgs;
@@ -65,8 +65,9 @@ enum Command {
 
 enum SessionState {
 	ENTRANCE	(new Command[]{EXIT, HELP, SETNAME, LOGIN}),
-	TRANSIENT	(new Command[]{EXIT, HELP, WHISPER, SHOUT, USERS, SETPASS}),
-	LOGGED_IN	(new Command[]{EXIT, HELP, WHISPER, SHOUT, USERS, BEFRIEND, UNFRIEND, FRIENDS, ACCEPT, REFUSE, CANCEL, DELETE});
+	TRANSIENT	(new Command[]{EXIT, HELP, WHISPER, SHOUT, USERS, SETPWD}),
+	LOGGED_IN	(new Command[]{EXIT, HELP, WHISPER, SHOUT, USERS, BEFRIEND, UNFRIEND, FRIENDS, ACCEPT, REFUSE, CANCEL, DELETE}),
+	DELETE_CONF	(new Command[]{EXIT, HELP, DELETE});
 	
 	Command[] validCommands;
 	SessionState(Command[] validCommands){
@@ -188,7 +189,26 @@ public class Protocol {
 					}
 				}
 
-			case SETPASS:
+			case DELETE:
+				if(state == LOGGED_IN) {
+					state = DELETE_CONF;
+					return "This will delete your account!\nType /delete <password> to confirm!";
+				} else if (state == DELETE_CONF) {
+					account = clientSession.account;
+					if (inputArgumentList.length == 1 && account.checkPassword(inputArgumentList[0].getBytes())) {
+						clientSession.disconnectFromChannel();
+						clientSession.unSetAccount();
+						account.delete();
+						state = ENTRANCE;
+						return "Account deleted. Returning to Entrance";
+					}
+					else {
+						state = LOGGED_IN;
+						return "Missing or incorrect password. Cancelling deletion.";
+					}
+				}
+				break;
+			case SETPWD:
 				clientSession.account.makePermanent(clientSession.server, inputArgumentList[0].getBytes());
 				state = LOGGED_IN;
 				return "Account now permanent";
@@ -206,7 +226,7 @@ public class Protocol {
 						return "Login successful";
 					}
 				} else {
-					return "Wrong username or password";
+					return "Incorrect username or password";
 				}
 
 			case BEFRIEND :

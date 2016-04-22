@@ -127,7 +127,7 @@ class Account {
 		for(int i=0; i < hashedPassword.length; i++) {
 			passwordMatch = passwordMatch && (hashedPassword[i] == passwordHash[i]);
 		}
-		server.serverConsole((passwordMatch?"SUCCESSFUL":"FAILED") + " login for account " + id + "(" + username + ")");
+		server.serverConsole((passwordMatch?"SUCCESSFUL":"FAILED") + " authentication attempt for account " + id + "(" + username + ")");
 		return passwordMatch;
 	}
 
