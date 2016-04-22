@@ -107,7 +107,7 @@ public class Protocol {
 				inputArguments = "";
 			}
 		} else command = lookUp(inputCommand);
-		
+
 		if (command == null || !command.containedIn(state.validCommands)) {
 			return "Invalid command '" + inputCommand.toLowerCase() + "'";
 		}

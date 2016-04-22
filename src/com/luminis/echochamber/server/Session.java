@@ -21,7 +21,7 @@ public class Session extends Thread {
 		this.socket = socket;
 		this.server = server;
 		channel = null;
-		id = UUID.randomUUID();
+		id = Security.createUUID();
 
 		server.channelIDs.add(id);
 	}

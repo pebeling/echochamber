@@ -45,7 +45,7 @@ class Account {
 			if (username.equals(account.username)) throw new Exception();
 		}
 
-		id = UUID.randomUUID();
+		id = Security.createUUID();
 
 		this.username = username;
 		creationDate = new Date();

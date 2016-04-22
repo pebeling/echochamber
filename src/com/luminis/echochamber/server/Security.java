@@ -3,6 +3,7 @@ package com.luminis.echochamber.server;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.UUID;
 
 class Security {
 	final public static SecureRandom random = new SecureRandom();
@@ -57,5 +58,9 @@ class Security {
 			bytes[i / 2] = (byte) ((Character.digit(hexString.charAt(i), 16) << 4) + Character.digit(hexString.charAt(i+1), 16));
 		}
 		return bytes;
+	}
+
+	static UUID createUUID() {
+		return UUID.randomUUID();
 	}
 }
