@@ -22,13 +22,12 @@ public class Session extends Thread {
 		this.server = server;
 		channel = null;
 		id = Security.createUUID();
-
-		server.channelIDs.add(id);
 	}
 
 	public void run() {
 		try {
-			server.serverConsole("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has connected to server.");
+			server.channelIDs.add(id);
+			server.serverConsole("Session " + id + " started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
 
 			toClient = new PrintWriter(socket.getOutputStream(), true);
 			BufferedReader fromClient = new BufferedReader(
@@ -42,13 +41,13 @@ public class Session extends Thread {
 			while (true) {
 				inputLine = fromClient.readLine();
 				if (inputLine == null) {
-					server.serverConsole("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has disconnected from server");
+					server.serverConsole("Client in session " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has disconnected from server");
 					toClient.println("Disconnected by client");
 					break;
 				} else {
 					outputLine = protocol.evaluateInput(inputLine);
 					if (outputLine == null) {
-						server.serverConsole("Server has closed the connection to client " + id + ".");
+						server.serverConsole("Server has closed the connection to client in session " + id + ".");
 						toClient.println("Disconnected by server");
 						break;
 					}
@@ -57,7 +56,11 @@ public class Session extends Thread {
 					}
 				}
 			}
+
+			if (channel != null) disconnectFromChannel();
+			if (account != null) unSetAccount();
 			server.channelIDs.remove(id);
+			server.serverConsole("Session " + id + " terminated");
 			toClient.close();
 			fromClient.close();
 			socket.close();
