@@ -85,21 +85,20 @@ public class Protocol {
 	}
 
 	String evaluateInput(String input) {
+		String inputCommand = null;
+		String inputArguments = null;
+		Command command = null;
+
 		if (input.equals("")) return "";
 
 		String pattern = "^\\s*(/([^\\s]*)\\s*)?(.*)";
 		Pattern regex = Pattern.compile(pattern);
 		Matcher matcher = regex.matcher(input);
-
-		String inputCommand = null;
-		String inputArguments = null;
-
 		if (matcher.find()) {
 			inputCommand = matcher.group(2);
 			inputArguments = matcher.group(3);
 		}
 
-		Command command = null;
 		if (inputCommand == null) {
 			if (state == TRANSIENT || state == LOGGED_IN) {
 				command = SHOUT;
@@ -108,6 +107,7 @@ public class Protocol {
 				inputArguments = "";
 			}
 		} else command = lookUp(inputCommand);
+		
 		if (command == null || !command.containedIn(state.validCommands)) {
 			return "Invalid command '" + inputCommand.toLowerCase() + "'";
 		}
