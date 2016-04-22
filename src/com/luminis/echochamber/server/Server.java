@@ -4,285 +4,220 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
 
-class Security {
-	final public static SecureRandom random = new SecureRandom();
-	final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
-
-	static public byte[] getNewSalt() {
-		byte salt[] = new byte[16];
-		random.nextBytes(salt);
-		random.nextInt();
-		return salt;
-	}
-
-	static public byte[] saltPassword(byte[] salt, byte[] password){
-		byte[] saltedPwd = new byte[salt.length + password.length];
-		for (int i = 0; i < salt.length; i++){
-			saltedPwd[i] = salt[i];
-		}
-		for (int i = 0; i < password.length; i++){
-			saltedPwd[i + salt.length] = password[i];
-			password[i] = 0;
-		}
-		return saltedPwd;
-	}
-
-	static public byte[] calculateHash(byte[] message) throws Exception {
-		MessageDigest hash = MessageDigest.getInstance("SHA-256");
-		hash.update(message);
-		for (int i = 0; i < message.length; i++){
-			message[i]=0;
-		}
-		return hash.digest();
-	}
-
-	static String byteArrayToHexString(byte[] bytes){
-		char[] hexChars = new char[bytes.length * 2];
-		for (int i = 0; i < bytes.length; i++) {
-			int v = bytes[i] & 0xFF;
-			hexChars[i * 2] = hexArray[v >>> 4];
-			hexChars[i * 2 + 1] = hexArray[v & 0x0F];
-		}
-		return new String(hexChars);
-	}
-
-	static byte[] hexStringToByteArray(String hexString){
-		int length = hexString.length();
-		byte[] bytes = new byte[length / 2];
-		for (int i = 0; i < length; i += 2) {
-			bytes[i / 2] = (byte) ((Character.digit(hexString.charAt(i), 16) << 4) + Character.digit(hexString.charAt(i+1), 16));
-		}
-		return bytes;
-	}
-}
-
 class Account {
-	static final Account rootAccount;
-	static {
-		try {
-			rootAccount = new Account("SYSTEM", new byte[]{});
-		} catch (Exception e) {
-			throw new ExceptionInInitializerError(e);
+	UUID id;
+	final Date creationDate;
+	Server server;
+	Session currentSession;
+
+	private String username;
+	private byte[] salt;
+	private byte[] passwordHash;
+
+	boolean temporary;
+	boolean online;
+	Date lastLoginDate;
+
+	ArrayList<Account> friends = null;
+	ArrayList<Account> pendingSentFriendRequests = null;
+	ArrayList<Account> pendingReceivedFriendRequests = null;
+
+	Account(Server server, String username, byte[] pwd) throws Exception {
+		if (pwd != null) {
+			salt = Security.getNewSalt();
+			passwordHash = Security.calculateHash(Security.saltPassword(salt, pwd));
+			System.out.println(passwordHash);
+			temporary = false;
+
+			friends = new ArrayList<>();
+			pendingSentFriendRequests = new ArrayList<>();
+			pendingReceivedFriendRequests = new ArrayList<>();
+		} else {
+			salt = null;
+			passwordHash = null;
+			temporary = true;
 		}
+
+		for (Account account : server.accounts) {
+			if (username.equals(account.username)) throw new Exception();
+		}
+
+		id = UUID.randomUUID();
+
+		this.username = username;
+		creationDate = new Date();
+		currentSession = null;
+
+		this.server = server;
+
+		online = false;
+		lastLoginDate = null;
+
+		this.server.accounts.add(this);
+		this.server.serverConsole("Created " + (temporary ? "temporary" : "persistent") + " account " + id + " for user " + this.username);
 	}
 
-	private String nickname;
-//	private byte[] salt;
-//	private byte[] passwordHash;
-//	final Date creationDate;
-	Date lastLoginDate;
-	ArrayList<Account> friends;
-	ArrayList<Account> pendingSentFriendRequests;
-	ArrayList<Account> pendingReceivedFriendRequests;
-	boolean active;
-	Session session;
-
-	Account(String name, byte[] pwd) throws Exception {
-		nickname = name;
-//		salt = Security.getNewSalt();
-//		passwordHash = Security.calculateHash(Security.saltPassword(salt, pwd));
-//		creationDate = new Date();
-		lastLoginDate = null;
-		friends = new ArrayList<>();
-		pendingSentFriendRequests = new ArrayList<>();
-		pendingReceivedFriendRequests = new ArrayList<>();
-		active = true;
-		session = null;
+	Account(Server server, String username) throws Exception { // Create temporary account that is non-persistent and has no friend information
+		this(server, username, null);
 	}
 
 	void delete() {
-		stopSession();
-//		passwordHash = null;
-		active = false;
-		// can't use friends.forEach((friend) -> unfriend(friend)); because of ConcurrentModificationException
-		Iterator<Account> friendIterator = friends.iterator();
-		while (friendIterator.hasNext()) {
-			Account friend = friendIterator.next();
-			friendIterator.remove();
-			friend.friends.remove(this);
+		server.serverConsole("Deleted " + (temporary ? "temporary" : "persistent") + " account " + id + " for user " + username);
+
+		username = null;
+		salt = null;
+		passwordHash = null;
+
+		if (!temporary) {
+			// can't use friends.forEach((friend) -> unfriend(friend)); because of ConcurrentModificationException
+			Iterator<Account> friendIterator = friends.iterator();
+			while (friendIterator.hasNext()) {
+				Account friend = friendIterator.next();
+				friendIterator.remove();
+				friend.friends.remove(this);
+			}
+			friendIterator = pendingSentFriendRequests.iterator();
+			while (friendIterator.hasNext()) {
+				Account friend = friendIterator.next();
+				friendIterator.remove();
+				friend.pendingReceivedFriendRequests.remove(this);
+			}
+			friendIterator = pendingReceivedFriendRequests.iterator();
+			while (friendIterator.hasNext()) {
+				Account friend = friendIterator.next();
+				friendIterator.remove();
+				friend.pendingSentFriendRequests.remove(this);
+			}
+
+			friends = null;
+			pendingSentFriendRequests = null;
+			pendingReceivedFriendRequests = null;
 		}
-		friendIterator = pendingSentFriendRequests.iterator();
-		while (friendIterator.hasNext()) {
-			Account friend = friendIterator.next();
-			friendIterator.remove();
-			friend.pendingReceivedFriendRequests.remove(this);
-		}
-		friendIterator = pendingReceivedFriendRequests.iterator();
-		while (friendIterator.hasNext()) {
-			Account friend = friendIterator.next();
-			friendIterator.remove();
-			friend.pendingSentFriendRequests.remove(this);
+		server.accounts.remove(this);
+	}
+
+	public String getName() {
+		return username;
+	}
+
+	public void login(Session session){
+		if(currentSession == null) {
+			currentSession = session;
+			online = true;
+			lastLoginDate = new Date();
 		}
 	}
 
-//	public boolean checkPassword(byte[] pwd) throws Exception {
-//		byte[] hashedPassword = Security.calculateHash(Security.saltPassword(salt, pwd));
-//
-//		boolean passwordMatch = passwordHash != null && hashedPassword.length == passwordHash.length;
-//		for(int i=0; i < hashedPassword.length; i++) {
-//			passwordMatch = passwordMatch && (hashedPassword[i] == passwordHash[i]);
-//		}
-//		return passwordMatch;
-//	}
+	public void logout() {
+		if (currentSession != null) {
+			if (temporary) delete();
+			else {
+				currentSession = null;
+				online = false;
+			}
+		}
+	}
+
+	public boolean checkPassword(byte[] pwd) {
+		byte[] hashedPassword = Security.calculateHash(Security.saltPassword(salt, pwd));
+		boolean passwordMatch = passwordHash != null && hashedPassword.length == passwordHash.length;
+		for(int i=0; i < hashedPassword.length; i++) {
+			passwordMatch = passwordMatch && (hashedPassword[i] == passwordHash[i]);
+		}
+		server.serverConsole((passwordMatch?"SUCCESSFUL":"FAILED") + " login for account " + id + "(" + username + ")");
+		return passwordMatch;
+	}
 
 	public void sendFriendRequest(Account account) {
-		if (!friends.contains(account) && account != this) {
+		if (!friends.contains(account) && account != this && !account.temporary && !this.temporary) {
 			pendingSentFriendRequests.add(account);
 			account.pendingReceivedFriendRequests.add(this);
 		}
 	}
 
 	public void cancelFriendRequest(Account account) {
-		pendingSentFriendRequests.remove(account);
-		account.pendingReceivedFriendRequests.remove(this);
+		if (!account.temporary && !this.temporary) {
+			pendingSentFriendRequests.remove(account);
+			account.pendingReceivedFriendRequests.remove(this);
+		}
 	}
 
 	public void acceptFriendRequest(Account account) {
-		boolean pendingHere = pendingReceivedFriendRequests.remove(account);
-		boolean pendingThere = account.pendingSentFriendRequests.remove(this);
-		if (pendingHere && pendingThere) {
-			friends.add(account);
-			account.friends.add(this);
+		if (!account.temporary && !this.temporary) {
+			boolean pendingHere = pendingReceivedFriendRequests.remove(account);
+			boolean pendingThere = account.pendingSentFriendRequests.remove(this);
+			if (pendingHere && pendingThere) {
+				friends.add(account);
+				account.friends.add(this);
+			}
 		}
 	}
 
 	public void refuseFriendRequest(Account account) {
-		pendingReceivedFriendRequests.remove(account);
-		account.pendingSentFriendRequests.remove(this);
+		if (!account.temporary && !this.temporary) {
+			pendingReceivedFriendRequests.remove(account);
+			account.pendingSentFriendRequests.remove(this);
+		}
 	}
 
 	public void unfriend(Account account) {
-		friends.remove(account);
-		account.friends.remove(this);
-	}
-
-//	public void updateLastLoginDate(Date date) {
-//		lastLoginDate = date;
-//	}
-
-	public String getName() {
-		return nickname;
-	}
-
-	public void startSession(){
-		if(session == null && active) {
-			session = new Session(this);
+		if (!account.temporary && !this.temporary) {
+			friends.remove(account);
+			account.friends.remove(this);
 		}
 	}
 
-	public void stopSession() {
-		session = null;
-	}
-}
-
-class Session {
-	Account account;
-	//ArrayList<Message> chat;
-	Channel currentChannel;
-	boolean active;
-
-	Session(Account account){
-		this.account = account;
-		//chatLog = new ArrayList<>();
-		Channel.defaultChannel.join(this);
-		active = true;
+	public void updateLastLoginDate(Date date) {
+		lastLoginDate = date;
 	}
 
-//	void addChat(String line) {
-//		if(active) {
-//			chatLog.add(new Message(account, currentChannel, line));
-//		}
-//	}
+	public void makePermanent(Server server, byte[] pwd) {
+		if (temporary) {
+			salt = Security.getNewSalt();
+			passwordHash = Security.calculateHash(Security.saltPassword(salt, pwd));
+			temporary = false;
 
-	void createChannel(String newChannel){
-
-	}
-
-	void switchChannel(Channel toChannel) {
-		if(active) {
-			currentChannel = toChannel;
+			friends = new ArrayList<>();
+			pendingSentFriendRequests = new ArrayList<>();
+			pendingReceivedFriendRequests = new ArrayList<>();
+			server.serverConsole("Changed temporary account " + id + " for user " + username + " to permanent");
 		}
-	}
-}
-
-class Message {
-	String nickname;
-	String channelName;
-	Date time;
-	String message;
-
-	Message(Account origin, Channel channel, String chat) {
-		nickname = origin.getName();
-		this.message = chat;
-		channelName = channel.getName();
-		time = new Date();
-	}
-	@Override
-	public String toString() {
-		return "" + time + "#" + channelName + "#" + nickname + "#> " + message;
+		else server.serverConsole("Warning: account " + id + " for user " + username + " is already a permanent account");
 	}
 }
 
 class Channel {
-	static final Channel defaultChannel = new Channel("COMMON_ROOM", Account.rootAccount);
+	volatile ArrayList<Session> connectedSessions;
+	public String name;
 
-	String name;
-	String createdBy;
-	ArrayList<Account> participants;
-
-	public String getName() {
-		return name;
-	}
-
-	Channel(String name, Account account) {
-		this.name = name;
-		participants = new ArrayList<>();
-		if(account != null) {
-			participants.add(account);
-		}
-		createdBy = account.getName();
-	}
-
-	@Override
-	public String toString(){
-		return name;
-	}
-
-	public void join(Session joiningSession) {
-		participants.add(joiningSession.account);
-		joiningSession.currentChannel = this;
-	}
-}
-
-class SimpleChannel {
-	private ArrayList<ServerThread> connectedSessions;
-
-	SimpleChannel() {
+	Channel(String channelName) {
 		connectedSessions = new ArrayList<>();
+		name = channelName;
 	}
 
-	public void subscribeToChannel(ServerThread serverThread) {
-		connectedSessions.add(serverThread);
-		broadcast("User " + TextColors.colorUserName(serverThread.nickName) + " joined the channel");
+	public void subscribe(Session session) {
+		if (connectedSessions.contains(session)) {
+
+		}
+		connectedSessions.add(session);
+		broadcast("User " + TextColors.colorUserName(session.account.getName()) + " joined channel " + name);
 	}
 
-	public void unSubscribeToChannel(ServerThread serverThread) {
-		if (connectedSessions.contains(serverThread)) {
-			broadcast("User " + TextColors.colorUserName(serverThread.nickName) + " left the channel");
-			connectedSessions.remove(serverThread);
+	public void unSubscribe(Session session) {
+		if (connectedSessions.contains(session)) {
+			broadcast("User " + TextColors.colorUserName(session.account.getName()) + " left channel " + name);
+			connectedSessions.remove(session);
 		}
 	}
 
-	public void shout(String message, ServerThread sender) {
-		broadcast(TextColors.colorUserName(sender.nickName) + "> " + message, sender);
+	public void shout(String message, Session sender) {
+		broadcast(TextColors.colorUserName(sender.account.getName()) + "> " + message, sender);
 	}
 
-	private void broadcast(String message, ServerThread sender) {
+	private void broadcast(String message, Session sender) {
 		connectedSessions.stream().filter(
 				session -> !session.equals(sender)
 		).forEach(
@@ -297,24 +232,29 @@ class SimpleChannel {
 	}
 
 	public ArrayList<String> listSessions() {
-		return connectedSessions.stream().map(session -> session.nickName).collect(Collectors.toCollection(ArrayList::new));
+		return connectedSessions.stream().map(session -> session.account.getName()).collect(Collectors.toCollection(ArrayList::new));
 	}
 }
 
 public class Server {
 	private int port;
-	ArrayList<UUID> idList = new ArrayList<>();
-	SimpleChannel channel = new SimpleChannel();
-	int maxConnectedClients = 2;
-	int numberOfConnectedClients = 0;
-	//int clientTimeOut = 5000; //900000; // 15 minutes in ms
+	static int maxConnectedClients = 3;
+	volatile int numberOfConnectedClients = 0;
+	volatile ArrayList<UUID> channelIDs;
+	volatile ArrayList<Account> accounts;
+	volatile ArrayList<Channel> channels;
+	static Channel defaultChannel;
 
 	Server(int port) {
 		this.port = port;
+		channelIDs = new ArrayList<>();
+		accounts = new ArrayList<>();
+		channels = new ArrayList<>();
+		defaultChannel = new Channel("Default");
+		channels.add(defaultChannel);
 	}
 
 	void start() {
-		//boolean listening = true;
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
 			serverConsole("Server started.");
 			while (true) {
@@ -329,7 +269,7 @@ public class Server {
 					numberOfConnectedClients--;
 				}
 				else {
-					new ServerThread(socket, this).start();
+					new Session(socket, this).start();
 				}
 			}
 		} catch (IOException e) {
@@ -340,5 +280,22 @@ public class Server {
 
 	void serverConsole(String output) {
 		System.out.println(new Date() + ": " + output);
+	}
+
+	Account getAccountByName(String username) {
+		for (Account account : accounts) {
+			if (account.getName().equals(username)) {
+				return account;
+			}
+		}
+		return null;
+	}
+	Channel getChannelByName(String channelname) {
+		for (Channel channel : channels) {
+			if (channel.name.equals(channelname)) {
+				return channel;
+			}
+		}
+		return null;
 	}
 }

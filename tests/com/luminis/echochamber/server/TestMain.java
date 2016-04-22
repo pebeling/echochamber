@@ -54,8 +54,9 @@ public class TestMain {
 
 	@Test
 	public void testCreateAccount() throws Exception {
+		Server server = new Server(4444);
 		Date start = new Date();
-		Account account = new Account("TEST_NAME", new byte[] {'P', 'W', 'D'});
+		Account account = new Account(server, "TEST_NAME", new byte[] {'P', 'W', 'D'});
 		Date end = new Date();
 
 		assertEquals(account.getName(), "TEST_NAME");
@@ -63,8 +64,8 @@ public class TestMain {
 		assertEquals(account.friends, new ArrayList<Account>());
 		assertEquals(account.pendingSentFriendRequests, new ArrayList<Account>());
 		assertEquals(account.pendingReceivedFriendRequests, new ArrayList<Account>());
-		assertTrue(account.active);
-		assertEquals(account.session, null);
+		//assertTrue(account.active);
+		assertEquals(account.currentSession, null);
 
 //		Date creation = account.creationDate;
 //		assertTrue(creation.after(start) || creation.equals(start));
@@ -73,32 +74,34 @@ public class TestMain {
 
 	@Test
 	public void testDeleteAccount() throws Exception {
-		Account account = new Account("TEST_NAME", new byte[] {'P', 'W', 'D'});
+		Server server = new Server(4444);
+		Account account = new Account(server, "TEST_NAME", new byte[] {'P', 'W', 'D'});
 
 		account.delete();
 //		assertFalse(account.checkPassword(new byte[] {'P', 'W', 'D'}));
-		assertFalse(account.active);
-		assertEquals(account.session, null);
+		//assertFalse(account.active);
+		assertEquals(account.currentSession, null);
 		assertEquals(account.friends, new ArrayList<Account>());
 		assertEquals(account.pendingSentFriendRequests, new ArrayList<Account>());
 		assertEquals(account.pendingReceivedFriendRequests, new ArrayList<Account>());
 	}
 
-	@Test
-	public void testDeleteAccountWithSession() throws Exception {
-		Account account = new Account("TEST_NAME", new byte[] {});
-		account.startSession();
-
-		account.delete();
-		assertEquals(account.session, null);
-	}
+//	@Test
+//	public void testDeleteAccountWithSession() throws Exception {
+//		Account account = new Account(server, "TEST_NAME", "TEST_NAME", new byte[] {});
+//		account.login();
+//
+//		account.delete();
+//		assertEquals(account.currentSession, null);
+//	}
 
 	@Test
 	public void testDeleteAccountWithFriendData() throws Exception {
-		Account accountClark = new Account("Clark", new byte[] {});
-		Account accountBruce = new Account("Bruce", new byte[] {});
-		Account accountDiana = new Account("Diana", new byte[] {});
-		Account accountZod = new Account("Zod", new byte[] {});
+		Server server = new Server(4444);
+		Account accountClark = new Account(server, "Clark", new byte[] {});
+		Account accountBruce = new Account(server, "Bruce", new byte[] {});
+		Account accountDiana = new Account(server, "Diana", new byte[] {});
+		Account accountZod = new Account(server, "Zod", new byte[] {});
 
 		accountClark.sendFriendRequest(accountBruce);
 		accountClark.sendFriendRequest(accountDiana);
@@ -114,17 +117,19 @@ public class TestMain {
 		assertFalse(accountZod.pendingSentFriendRequests.contains(accountClark));
 	}
 
-//	@Test
-//	public void testAccountPasswordCheck() throws Exception {
-//		Account account = new Account("TEST_NAME", new byte[] {'P', 'W', 'D'});
-//		assertTrue(account.checkPassword(new byte[] {'P', 'W', 'D'}));
-//		assertFalse(account.checkPassword(new byte[] {'Q', 'E', 'D'}));
-//	}
+	@Test
+	public void testAccountPasswordCheck() throws Exception {
+		Server server = new Server(4444);
+		Account account = new Account(server, "TEST_NAME", new byte[] {'P', 'W', 'D'});
+		assertTrue(account.checkPassword(new byte[] {'P', 'W', 'D'}));
+		assertFalse(account.checkPassword(new byte[] {'Q', 'E', 'D'}));
+	}
 
 	@Test
 	public void testFriendRequest() throws Exception {
-		Account accountBob = new Account("Bob", new byte[] {});
-		Account accountEve = new Account("Eve", new byte[] {});
+		Server server = new Server(4444);
+		Account accountBob = new Account(server, "Bob", new byte[] {});
+		Account accountEve = new Account(server, "Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 
@@ -137,8 +142,9 @@ public class TestMain {
 
 	@Test
 	public void testFriendRequestCancel() throws Exception {
-		Account accountBob = new Account("Bob", new byte[] {});
-		Account accountEve = new Account("Eve", new byte[] {});
+		Server server = new Server(4444);
+		Account accountBob = new Account(server, "Bob", new byte[] {});
+		Account accountEve = new Account(server, "Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 		accountBob.cancelFriendRequest(accountEve);
@@ -149,8 +155,9 @@ public class TestMain {
 
 	@Test
 	public void testFriendRequestRefusal() throws Exception {
-		Account accountBob = new Account("Bob", new byte[] {});
-		Account accountEve = new Account("Eve", new byte[] {});
+		Server server = new Server(4444);
+		Account accountBob = new Account(server, "Bob", new byte[] {});
+		Account accountEve = new Account(server, "Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 		accountEve.refuseFriendRequest(accountBob);
@@ -161,8 +168,9 @@ public class TestMain {
 
 	@Test
 	public void testFriendRequestAcceptance() throws Exception {
-		Account accountBob = new Account("Bob", new byte[] {});
-		Account accountEve = new Account("Eve", new byte[] {});
+		Server server = new Server(4444);
+		Account accountBob = new Account(server, "Bob", new byte[] {});
+		Account accountEve = new Account(server, "Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 		accountEve.acceptFriendRequest(accountBob);
@@ -176,8 +184,9 @@ public class TestMain {
 
 	@Test
 	public void testUnFriend() throws Exception {
-		Account accountBob = new Account("Bob", new byte[] {});
-		Account accountEve = new Account("Eve", new byte[] {});
+		Server server = new Server(4444);
+		Account accountBob = new Account(server, "Bob", new byte[] {});
+		Account accountEve = new Account(server, "Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 		accountEve.acceptFriendRequest(accountBob);
@@ -187,14 +196,14 @@ public class TestMain {
 		assertFalse(accountEve.friends.contains(accountBob));
 	}
 
-	@Test
-	public void testSessionStart() throws Exception {
-		Account account = new Account("Bob", new byte[] {});
-		account.startSession();
-		Session session = account.session;
-
-		assertTrue(session.active);
-		assertEquals(session.currentChannel.getName(), Channel.defaultChannel.getName());
-		assertTrue(session.currentChannel.participants.contains(account));
-	}
+//	@Test
+//	public void testSessionStart() throws Exception {
+//		Account account = new Account(server, "Bob", new byte[] {});
+//		account.login();
+//		Session session = account.currentSession;
+//
+//		assertTrue(session.active);
+//		assertEquals(session.currentChannel.getName(), Channel.defaultChannel.getName());
+//		assertTrue(session.currentChannel.participants.contains(account));
+//	}
 }

@@ -12,21 +12,22 @@ public class Session extends Thread {
 	private Socket socket = null;
 	Server server;
 	Channel channel;
-	private PrintWriter toClient;
-	public String nickName;
+	PrintWriter toClient;
+	Account account;
+	UUID id;
 
 	public Session(Socket socket, Server server) {
-		super("EchoChamberServerThread");
+		super("EchoChamberSessionThread");
 		this.socket = socket;
 		this.server = server;
-		channel = server.channel;
+		channel = null;
+		id = UUID.randomUUID();
+
+		server.channelIDs.add(id);
 	}
 
 	public void run() {
 		try {
-			UUID id = UUID.randomUUID();
-			server.idList.add(id);
-
 			server.serverConsole("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has connected to server.");
 
 			toClient = new PrintWriter(socket.getOutputStream(), true);
@@ -43,7 +44,6 @@ public class Session extends Thread {
 				if (inputLine == null) {
 					server.serverConsole("Client " + id + " at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has disconnected from server");
 					toClient.println("Disconnected by client");
-					disconnectFromChannel();
 					break;
 				} else {
 					outputLine = protocol.evaluateInput(inputLine);
@@ -57,7 +57,7 @@ public class Session extends Thread {
 					}
 				}
 			}
-			server.idList.remove(id);
+			server.channelIDs.remove(id);
 			toClient.close();
 			fromClient.close();
 			socket.close();
@@ -66,12 +66,22 @@ public class Session extends Thread {
 			e.printStackTrace();
 		}
 	}
-	void connectToChannel() {
-		channel.subscribeToChannel(this);
+	void connectToChannel(Channel channel) {
+		if (this.channel == null) {
+			this.channel = channel;
+			channel.subscribe(this);
+			server.serverConsole("Session " + id + " bound to channel " + channel.name);
+		}
+		else server.serverConsole("Warning: Session " + id + " already bound to channel " + this.channel);
 	}
 
 	void disconnectFromChannel() {
-		channel.unSubscribeToChannel(this);
+		if (this.channel != null) {
+			server.serverConsole("Session " + id + " unbound from channel " + channel.name);
+			channel.unSubscribe(this);
+			this.channel = null;
+		}
+		else server.serverConsole("Warning: Session " + id + " not bound to a channel");
 	}
 
 	void broadcastToChannel(String argument) {
@@ -82,7 +92,29 @@ public class Session extends Thread {
 		toClient.println(message);
 	}
 
-	ArrayList<String> listSessions() {
-		return channel.listSessions();
+	ArrayList<Session> sessionsInSameChannel() {
+		return channel.connectedSessions;
+	}
+
+	ArrayList<Session> sessionsInChannel(Channel channel) {
+		return channel.connectedSessions;
+	}
+
+	void setAccount(Account account) {
+		if (this.account == null) {
+			this.account = account;
+			account.login(this);
+			server.serverConsole("Session " + id + " bound to account " + account.id);
+		}
+		else server.serverConsole("Warning: Session " + id + " already bound to account " + this.id);
+	}
+
+	void unSetAccount() {
+		if (this.account != null) {
+			server.serverConsole("Session " + id + " unbound from account " + account.id);
+			this.account.logout();
+			this.account = null;
+		}
+		else server.serverConsole("Warning: Session " + id + " not bound to an account");
 	}
 }
