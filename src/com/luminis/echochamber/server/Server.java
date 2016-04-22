@@ -237,14 +237,13 @@ public class Server {
 	volatile ArrayList<UUID> channelIDs;
 	volatile ArrayList<Account> accounts;
 	volatile private ArrayList<Channel> channels;
-	static Channel defaultChannel;
+	static Channel defaultChannel = new Channel("Default");
 
 	Server(int port) {
 		this.port = port;
 		channelIDs = new ArrayList<>();
 		accounts = new ArrayList<>();
 		channels = new ArrayList<>();
-		defaultChannel = new Channel("Default");
 		channels.add(defaultChannel);
 	}
 
@@ -253,14 +252,12 @@ public class Server {
 			serverConsole("Server started.");
 			while (true) {
 				Socket socket = serverSocket.accept();
-				numberOfConnectedClients++;
-				if (numberOfConnectedClients > maxConnectedClients) {
+				if (numberOfConnectedClients + 1 > maxConnectedClients) {
 					PrintWriter toClient = new PrintWriter(socket.getOutputStream(), true);
 					toClient.println("Too many connections. Closing connection");
 					toClient.close();
 					socket.close();
 					serverConsole("Maximum number of simultaneous connections reached");
-					numberOfConnectedClients--;
 				}
 				else {
 					new Session(socket, this).start();
@@ -284,12 +281,12 @@ public class Server {
 		}
 		return null;
 	}
-	Channel getChannelByName(String channelname) {
-		for (Channel channel : channels) {
-			if (channel.name.equals(channelname)) {
-				return channel;
-			}
-		}
-		return null;
-	}
+//	Channel getChannelByName(String channelname) {
+//		for (Channel channel : channels) {
+//			if (channel.name.equals(channelname)) {
+//				return channel;
+//			}
+//		}
+//		return null;
+//	}
 }

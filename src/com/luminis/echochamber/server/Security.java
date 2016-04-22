@@ -9,14 +9,14 @@ class Security {
 	final private static SecureRandom random = new SecureRandom();
 	final private static char[] hexArray = "0123456789ABCDEF".toCharArray();
 
-	static public byte[] getNewSalt() {
+	static byte[] getNewSalt() {
 		byte salt[] = new byte[16];
 		random.nextBytes(salt);
 		random.nextInt();
 		return salt;
 	}
 
-	static public byte[] saltPassword(byte[] salt, byte[] password){
+	static byte[] saltPassword(byte[] salt, byte[] password){
 		byte[] saltedPwd = new byte[salt.length + password.length];
 		System.arraycopy(salt, 0, saltedPwd, 0, salt.length);
 		for (int i = 0; i < password.length; i++){
@@ -26,7 +26,7 @@ class Security {
 		return saltedPwd;
 	}
 
-	static public byte[] calculateHash(byte[] message) {
+	static byte[] calculateHash(byte[] message) {
 		try {
 			MessageDigest hash = MessageDigest.getInstance("SHA-256");
 			hash.update(message);

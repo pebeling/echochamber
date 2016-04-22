@@ -8,21 +8,21 @@ import static com.luminis.echochamber.server.Command.*;
 import static com.luminis.echochamber.server.SessionState.*;
 
 enum Command {
+	HELP		("help",	0, 1, "[<command>]", 		"Either lists all available commands or gives info on a specific command"	),
 	SETNAME		("setname",	1, 1, "<name>", 			"Sets a nickname and connects to the default channel as a temporary account"),
+	SETPWD		("setpwd",	1, 1, "<password>", 		"creates new account"														),
+	LOGIN		("login",	2, 2, "<name> <password>", 	"Log in to your account"													),
 	EXIT		("exit",	0, 0, "", 					"Logs out or ends the current session"										),
 	USERS		("users",	0, 1, "[<channel>]", 		"Lists online users"														),
 	WHISPER		("whisper",	2, 0, "<user> <message>",	"Sends a message to a specific user"										),
 	SHOUT		("shout",	1, 0, "<message>", 			"Sends a message to all in the channel (default)"							),
-	HELP		("help",	0, 1, "[<command>]", 		"Either lists all available commands or gives info on a specific command"	),
-	LOGIN		("login",	2, 2, "<name> <password>", 	"Log in to your account"													),
+	DELETE		("delete", 	0, 1, "", 					"Deletes your account"														),
+	FRIENDS		("friends", 0, 0, "", 					"List friends and friend request statuses"									),
 	BEFRIEND	("befriend",1, 1, "<user>", 			"Sends someone a friend request"											),
 	UNFRIEND	("unfriend",1, 1, "<user>", 			"Removes someone from your friend list"										),
-	FRIENDS		("friends", 0, 0, "", 					"List friends and friend request statuses"									),
 	ACCEPT		("accept", 	1, 1, "<user>", 			"Accept a friend request"													),
 	REFUSE		("refuse", 	1, 1, "<user>", 			"Refuse a friend request"													),
-	CANCEL		("cancel", 	1, 1, "<user>", 			"Cancels a pending friend request"											),
-	DELETE		("delete", 	0, 1, "", 					"Deletes your account"														),
-	SETPWD		("setpwd",	1, 1, "<password>", 		"creates new account"														);
+	CANCEL		("cancel", 	1, 1, "<user>", 			"Cancels a pending friend request"											),;
 
 	String commandString, usage, description;
 	int minArgs, maxArgs;
@@ -75,7 +75,7 @@ enum SessionState {
 	}
 }
 
-public class Protocol {
+class Protocol {
 	private Session clientSession;
 	private SessionState state;
 
@@ -125,7 +125,7 @@ public class Protocol {
 		return executeCommand(command, inputArgumentList);
 	}
 
-	public String welcomeMessage() {
+	String welcomeMessage() {
 		String[] lines = new String[]{
 				"--------------------------------------------------",
 				"Welcome to the EchoChamber chat server!",
@@ -149,6 +149,25 @@ public class Protocol {
 		Account account;
 
 		switch(command) {
+			case HELP :
+				String availableCommands = "";
+				if(inputArgumentList.length == 0) {
+					for (Command c : state.validCommands) {
+						if (!availableCommands.equals("")) {
+							availableCommands += ", ";
+						}
+						availableCommands += "'" + c.commandString + "'";
+					}
+					return "Available commands: " + availableCommands;
+				} else if (inputArgumentList.length == 1) {
+					Command foundCommand = Command.lookUp(inputArgumentList[0]);
+					if (foundCommand == null) {
+						return "Error: No such command \"" + inputArgumentList[0] + "\"";
+					} else {
+						return foundCommand.getDescription();
+					}
+				}
+
 			case SETNAME:
 				try {
 					clientSession.setAccount(new Account(clientSession.server, inputArgumentList[0])); // Create temporary account
@@ -158,6 +177,28 @@ public class Protocol {
 				state = TRANSIENT;
 				clientSession.connectToChannel(Server.defaultChannel);
 				return "";
+
+			case SETPWD:
+				clientSession.account.makePermanent(clientSession.server, inputArgumentList[0].getBytes());
+				state = LOGGED_IN;
+				return "Account now permanent";
+
+			case LOGIN :
+				account = clientSession.server.getAccountByName(inputArgumentList[0]);
+				if (account != null && account.checkPassword(inputArgumentList[1].getBytes())) {
+					if (account.online) {
+						return "Account already logged in";
+					}
+					else {
+						clientSession.setAccount(account);
+						clientSession.connectToChannel(Server.defaultChannel);
+						state = LOGGED_IN;
+						account.lastLoginDate = new Date();
+						return "Login successful. Last login: " + account.lastLoginDate;
+					}
+				} else {
+					return "Incorrect username or password";
+				}
 
 			case EXIT :
 				if (state == TRANSIENT || state == LOGGED_IN) {
@@ -184,7 +225,7 @@ public class Protocol {
 				if (account == null){
 					return "No account with username " + inputArgumentList[0] + " found";
 				} else if (account.online) {
-					account.currentSession.toClient.println(clientSession.account.getName() + " whispers: " + inputArgumentList[1]);
+					account.currentSession.message(clientSession.account.getName() + " whispers: " + inputArgumentList[1]);
 					return "You whispered a message to " + account.getName();
 				} else {
 					return "User " + account.getName() + " is not online";
@@ -193,25 +234,6 @@ public class Protocol {
 			case SHOUT :
 				clientSession.broadcastToChannel(inputArgumentList[0]);
 				return "";
-
-			case HELP :
-				String availableCommands = "";
-				if(inputArgumentList.length == 0) {
-					for (Command c : state.validCommands) {
-						if (!availableCommands.equals("")) {
-							availableCommands += ", ";
-						}
-						availableCommands += "'" + c.commandString + "'";
-					}
-					return "Available commands: " + availableCommands;
-				} else if (inputArgumentList.length == 1) {
-					Command foundCommand = Command.lookUp(inputArgumentList[0]);
-					if (foundCommand == null) {
-						return "Error: No such command \"" + inputArgumentList[0] + "\"";
-					} else {
-						return foundCommand.getDescription();
-					}
-				}
 
 			case DELETE:
 				if(state == LOGGED_IN) {
@@ -232,50 +254,7 @@ public class Protocol {
 					}
 				}
 				break;
-			case SETPWD:
-				clientSession.account.makePermanent(clientSession.server, inputArgumentList[0].getBytes());
-				state = LOGGED_IN;
-				return "Account now permanent";
 
-			case LOGIN :
-				account = clientSession.server.getAccountByName(inputArgumentList[0]);
-				if (account != null && account.checkPassword(inputArgumentList[1].getBytes())) {
-					if (account.online) {
-						return "Account already logged in";
-					}
-					else {
-						clientSession.setAccount(account);
-						clientSession.connectToChannel(Server.defaultChannel);
-						state = LOGGED_IN;
-						account.lastLoginDate = new Date();
-						return "Login successful. Last login: " + account.lastLoginDate;
-					}
-				} else {
-					return "Incorrect username or password";
-				}
-
-			case BEFRIEND :
-				account = clientSession.server.getAccountByName(inputArgumentList[0]);
-				if (account == null){
-					return "No account with username " + inputArgumentList[0] + " found";
-				} else if (account.temporary) {
-					return "You can only send friend requests to permanent accounts";
-				} else if (account.equals(clientSession.account)) {
-					return "Get a life!";
-				} else {
-					clientSession.account.sendFriendRequest(account);
-					return "Friend request sent";
-				}
-			case UNFRIEND :
-				account = clientSession.server.getAccountByName(inputArgumentList[0]);
-				if (account == null){
-					return "No account with username " + inputArgumentList[0] + " found";
-				} else if (!clientSession.account.friends.contains(account)) {
-					return account.getName() + "is not in your friend list";
-				} else {
-					clientSession.account.unfriend(account);
-					return "You removed " + account.getName() + " from your friend list";
-				}
 			case FRIENDS :
 				String friendStatus = "";
 				friendStatus += "Current friends:\n";
@@ -293,6 +272,31 @@ public class Protocol {
 					friendStatus += "\t" + friend.getName() + "\n";
 				}
 				return friendStatus;
+
+			case BEFRIEND :
+				account = clientSession.server.getAccountByName(inputArgumentList[0]);
+				if (account == null){
+					return "No account with username " + inputArgumentList[0] + " found";
+				} else if (account.temporary) {
+					return "You can only send friend requests to permanent accounts";
+				} else if (account.equals(clientSession.account)) {
+					return "Get a life!";
+				} else {
+					clientSession.account.sendFriendRequest(account);
+					return "Friend request sent";
+				}
+
+			case UNFRIEND :
+				account = clientSession.server.getAccountByName(inputArgumentList[0]);
+				if (account == null){
+					return "No account with username " + inputArgumentList[0] + " found";
+				} else if (!clientSession.account.friends.contains(account)) {
+					return account.getName() + "is not in your friend list";
+				} else {
+					clientSession.account.unfriend(account);
+					return "You removed " + account.getName() + " from your friend list";
+				}
+
 			case ACCEPT :
 				account = clientSession.server.getAccountByName(inputArgumentList[0]);
 				if (account == null){
@@ -303,6 +307,7 @@ public class Protocol {
 					clientSession.account.acceptFriendRequest(account);
 					return "You and " + account.getName() + " are now friends";
 				}
+
 			case REFUSE :
 				account = clientSession.server.getAccountByName(inputArgumentList[0]);
 				if (account == null){
@@ -313,6 +318,7 @@ public class Protocol {
 					clientSession.account.refuseFriendRequest(account);
 					return "You refused " + account.getName() + "'s friend request";
 				}
+
 			case CANCEL :
 				account = clientSession.server.getAccountByName(inputArgumentList[0]);
 				if (account == null){
@@ -325,5 +331,10 @@ public class Protocol {
 				}
 		}
 		return "Error: command '" + command.commandString + "' not implemented";
+	}
+
+	void close() {
+		if (clientSession.channel != null) clientSession.disconnectFromChannel();
+		if (clientSession.account != null) clientSession.unSetAccount();
 	}
 }
