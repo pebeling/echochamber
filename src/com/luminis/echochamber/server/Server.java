@@ -214,13 +214,13 @@ class Channel {
 	synchronized void subscribe(Session session) {
 		if (!connectedSessions.contains(session)) {
 			connectedSessions.add(session);
-			broadcast("User " + TextColors.colorUserName(session.account.getName()) + " joined channel " + name);
+			broadcast("User " + TextColors.colorUserName(session.account.getName()) + " joined channel " + this);
 		}
 	}
 
 	synchronized void unSubscribe(Session session) {
 		if (connectedSessions.contains(session)) {
-			broadcast("User " + TextColors.colorUserName(session.account.getName()) + " left channel " + name);
+			broadcast("User " + TextColors.colorUserName(session.account.getName()) + " left channel " + this);
 			connectedSessions.remove(session);
 		}
 	}
