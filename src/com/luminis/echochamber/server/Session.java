@@ -47,7 +47,7 @@ class Session extends Thread {
 					messageToClient("Disconnected by client");
 					break;
 				} else {
-					outputLine = protocol.evaluateInput(inputLine);
+					outputLine = protocol.evaluateInput(inputLine.replaceAll("\\p{C}", "")); // strip non-printable characters by unicode regex
 					if (outputLine == null) {
 						Server.logger.info("Server has closed the connection to client");
 						messageToClient("Disconnected by server");
