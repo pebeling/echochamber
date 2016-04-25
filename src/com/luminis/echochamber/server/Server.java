@@ -1,5 +1,8 @@
 package com.luminis.echochamber.server;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
@@ -53,7 +56,7 @@ class Account {
 		lastLoginDate = null;
 
 		this.server.addAccount(this);
-		this.server.serverConsole("Created " + (permanent ? "persistent" : "temporary") + " account " + this);
+		Server.logger.info("Created " + (permanent ? "persistent" : "temporary") + " account " + this);
 	}
 
 	Account(Server server, String username) throws Exception { // Create non-persistent account that has no friend information
@@ -66,7 +69,7 @@ class Account {
 	}
 
 	synchronized void delete() {
-		server.serverConsole("Deleted " + (permanent ? "persistent" : "temporary") + " account " + this);
+		Server.logger.info("Deleted " + (permanent ? "persistent" : "temporary") + " account " + this);
 
 		username = null;
 		salt = null;
@@ -128,7 +131,7 @@ class Account {
 		for(int i=0; i < hashedPassword.length; i++) {
 			passwordMatch = passwordMatch && (hashedPassword[i] == passwordHash[i]);
 		}
-		server.serverConsole((passwordMatch?"SUCCESSFUL":"FAILED") + " authentication attempt for account " + this);
+		Server.logger.info((passwordMatch?"SUCCESSFUL":"FAILED") + " authentication attempt for account " + this);
 		return passwordMatch;
 	}
 
@@ -180,9 +183,9 @@ class Account {
 			friends = new ArrayList<>();
 			pendingSentFriendRequests = new ArrayList<>();
 			pendingReceivedFriendRequests = new ArrayList<>();
-			server.serverConsole("Changed transient account " + this + " to permanent");
+			Server.logger.info("Changed transient account " + this + " to permanent");
 		}
-		else server.serverConsole("Warning: account " + this + " is already a permanent account");
+		else Server.logger.warn("Account " + this + " is already a permanent account");
 	}
 
 	boolean isOnline() {
@@ -223,16 +226,16 @@ class Channel {
 	}
 
 	synchronized void shout(String message, Session sender) {
-		broadcast(TextColors.colorUserName(sender.account.getName()) + "> " + message, sender);
+		broadcast(TextColors.colorUserName(sender.account.getName()) + "> " + message);
 	}
 
-	synchronized private void broadcast(String message, Session sender) {
-		connectedSessions.stream().filter(
-				session -> !session.equals(sender)
-		).forEach(
-				session -> session.message(message)
-		);
-	}
+//	synchronized private void broadcast(String message, Session sender) {
+//		connectedSessions.stream().filter(
+//				session -> !session.equals(sender)
+//		).forEach(
+//				session -> session.message(message)
+//		);
+//	}
 
 	synchronized private void broadcast(String message) {
 		connectedSessions.stream().forEach(
@@ -250,6 +253,7 @@ class Channel {
 }
 
 class Server {
+	static final Logger logger = LogManager.getLogger(Server.class);
 	private int port;
 	static int maxConnectedClients = 3;
 	private volatile int numberOfConnectedClients = 0;
@@ -268,7 +272,7 @@ class Server {
 
 	void start() {
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
-			serverConsole("Server started.");
+			logger.info("Server started.");
 			while (true) {
 				Socket socket = serverSocket.accept();
 				if (numberOfConnectedClients + 1 > maxConnectedClients) {
@@ -276,7 +280,7 @@ class Server {
 					toClient.println("Too many connections. Closing connection");
 					toClient.close();
 					socket.close();
-					serverConsole("Maximum number of simultaneous connections reached");
+					logger.warn("Maximum number of simultaneous connections reached");
 				}
 				else {
 					new Session(socket, this).start();
@@ -288,9 +292,9 @@ class Server {
 		}
 	}
 
-	void serverConsole(String output) {
-		System.out.println(new Date() + ": " + output);
-	}
+//	void serverConsole(String output) {
+//		System.out.println(new Date() + ": " + output);
+//	}
 
 	synchronized Account getAccountByName(String username) {
 		for (Account account : accounts) {
@@ -302,21 +306,21 @@ class Server {
 	}
 
 	synchronized void addSession(UUID id) {
+		numberOfConnectedClients++;
 		sessions.add(id);
 	}
 
 	synchronized void removeSession(UUID id) {
 		sessions.remove(id);
+		numberOfConnectedClients--;
 	}
 
 	synchronized void addAccount(Account account) {
 		accounts.add(account);
-		numberOfConnectedClients++;
 	}
 
 	synchronized void removeAccount(Account account) {
 		accounts.remove(account);
-		numberOfConnectedClients--;
 	}
 
 	int numberOfConnectedClients() {

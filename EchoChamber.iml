@@ -18,5 +18,14 @@
         <SOURCES />
       </library>
     </orderEntry>
+    <orderEntry type="library" name="apache-log4j-2" level="project" />
+    <orderEntry type="module-library" scope="RUNTIME">
+      <library>
+        <CLASSES>
+          <root url="file://$MODULE_DIR$" />
+        </CLASSES>
+        <JAVADOC />
+      </library>
+    </orderEntry>
   </component>
 </module>

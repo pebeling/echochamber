@@ -91,8 +91,6 @@ class Protocol {
 		String inputArguments = null;
 		Command command = null;
 
-		if (input.equals("")) return "";
-
 		String pattern = "^\\s*(/([^\\s]*)\\s*)?(.*)";
 		Pattern regex = Pattern.compile(pattern);
 		Matcher matcher = regex.matcher(input);
@@ -101,12 +99,19 @@ class Protocol {
 			inputArguments = matcher.group(3);
 		}
 
-		if (inputCommand == null) {
+		if (inputCommand == null || inputCommand.equals("")) {
 			if (state == TRANSIENT || state == LOGGED_IN) {
-				command = SHOUT;
-			} else if (state == ENTRANCE) {
+				if (inputArguments.equals("")) {
+					return "";
+				}
+				else {
+					command = SHOUT;
+				}
+			} else if (state == ENTRANCE || state == DELETE_CONF) {
 				command = HELP;
 				inputArguments = "";
+			} else {
+				return "Response to empty command undefined";
 			}
 		} else command = lookUp(inputCommand);
 
@@ -116,7 +121,7 @@ class Protocol {
 
 		String[] inputArgumentList;
 		if (command.maxArgs < command.minArgs) { // signifies that the last argument contains the rest of the input un-split.
-			inputArgumentList = inputArguments.split("\\s+", command.maxArgs);
+			inputArgumentList = inputArguments.split("\\s+", command.minArgs);
 		} else {
 			inputArgumentList = inputArguments.split("\\s+");
 		}
@@ -144,7 +149,7 @@ class Protocol {
 			}
 			msg += s;
 		}
-		return TextColors.colorServermessage(msg);
+		return msg;
 	}
 
 	private String executeCommand(Command command, String[] inputArgumentList) {
@@ -266,14 +271,12 @@ class Protocol {
 				String friendStatus = "";
 				friendStatus += "Current friends:\n";
 				for (Account friend : clientSession.account.friends) {
-					friendStatus += "\t" + friend.getName() + " (" + (friend.isOnline() ? friend.currentSession.channel : "OFFLINE") + ") \n";
+					friendStatus += "\t" + friend.getName() + " " + (friend.isOnline() ? friend.currentSession.channel : "[OFFLINE]") + " \n";
 				}
-				friendStatus += "\n";
 				friendStatus += "Pending sent friend requests: \n";
 				for (Account friend : clientSession.account.pendingSentFriendRequests) {
 					friendStatus += "\t" + friend.getName() + "\n";
 				}
-				friendStatus += "\n";
 				friendStatus += "Pending received friend requests: \n";
 				for (Account friend : clientSession.account.pendingReceivedFriendRequests) {
 					friendStatus += "\t" + friend.getName() + "\n";
