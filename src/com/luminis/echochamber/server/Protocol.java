@@ -13,6 +13,8 @@ enum Command {
 	SETPWD		("setpwd",	1, 1, "<password>", 		"creates new account"														),
 	LOGIN		("login",	2, 2, "<name> <password>", 	"Log in to your account"													),
 	LOGOUT		("logout",	0, 0, "", 					"Logs out"																	),
+	ACCOUNTS	("accounts",0, 0, "", 					"Lists all accounts"														),
+	SESSIONS	("sessions",0, 0, "", 					"Lists all sessions"														),
 	EXIT		("exit",	0, 0, "", 					"Ends the current session"													),
 	USERS		("users",	0, 1, "[<channel>]", 		"Lists online users"														),
 	WHISPER		("whisper",	2, 0, "<user> <message>",	"Sends a message to a specific user"										),
@@ -68,9 +70,9 @@ enum Command {
 enum SessionState {
 	ENTRANCE	(new Command[]{EXIT, HELP, SETNAME, LOGIN}),
 	TRANSIENT	(new Command[]{EXIT, HELP, LOGOUT, WHISPER, SHOUT, USERS, SETPWD}),
-	LOGGED_IN	(new Command[]{EXIT, HELP, LOGOUT, WHISPER, SHOUT, USERS, BEFRIEND, UNFRIEND, FRIENDS, ACCEPT, REFUSE, FORGET, DELETE}),
+	LOGGED_IN	(new Command[]{EXIT, HELP, LOGOUT, WHISPER, SHOUT, USERS, BEFRIEND, UNFRIEND, FRIENDS, ACCEPT, REFUSE, FORGET, DELETE, ACCOUNTS, SESSIONS}),
 	DELETE_CONF	(new Command[]{EXIT, HELP, CANCEL, DELETE});
-	
+
 	Command[] validCommands;
 	SessionState(Command[] validCommands){
 		this.validCommands = validCommands;
@@ -154,6 +156,7 @@ class Protocol {
 
 	private String executeCommand(Command command, String[] inputArgumentList) {
 		Account account;
+		String list;
 
 		switch(command) {
 			case HELP :
@@ -177,7 +180,9 @@ class Protocol {
 
 			case SETNAME:
 				try {
-					clientSession.setAccount(new Account(clientSession.server, inputArgumentList[0])); // Create temporary account
+					account = new Account(clientSession.server, inputArgumentList[0]);
+					clientSession.setAccount(account); // Create temporary account
+					clientSession.server.addAccount(account);
 				} catch (Exception e){
 					return "Unable to create temporary account with nickname: " + inputArgumentList[0];
 				}
@@ -197,11 +202,11 @@ class Protocol {
 						return "Account already logged in";
 					}
 					else {
+						String oldLastLoginDate = account.lastLoginDate.toString();
 						clientSession.setAccount(account);
 						clientSession.connectToChannel(Server.defaultChannel);
 						state = LOGGED_IN;
-						account.lastLoginDate = new Date();
-						return "Login successful. Last login: " + account.lastLoginDate;
+						return "Login successful. Last login: " + oldLastLoginDate;
 					}
 				} else {
 					return "Incorrect username or password";
@@ -213,12 +218,26 @@ class Protocol {
 				state = ENTRANCE;
 				return "Returning to Entrance";
 
+			case ACCOUNTS:
+				list = "";
+				for (Account a : clientSession.server.accounts) {
+					list += a.infoString() + "\n";
+				}
+				return list;
+
+			case SESSIONS:
+				list = "";
+				for (Session s : clientSession.server.sessions) {
+					list += s.toString() + "\n";
+				}
+				return list;
+
 			case EXIT :
 				return null;
 
 			case USERS:
 				if(inputArgumentList.length == 0) {
-					String list = "";
+					list = "";
 					for (Session session : clientSession.sessionsInSameChannel()) {
 						if (!list.equals("")) {
 							list += "\n";
@@ -233,7 +252,7 @@ class Protocol {
 				if (account == null){
 					return "No account with username " + inputArgumentList[0] + " found";
 				} else if (account.isOnline()) {
-					account.currentSession.message(clientSession.account.getName() + " whispers: " + inputArgumentList[1]);
+					account.currentSession.messageClient(clientSession.account.getName() + " whispers: " + inputArgumentList[1]);
 					return "You whispered a message to " + account.getName();
 				} else {
 					return "User " + account.getName() + " is not online";
@@ -252,7 +271,7 @@ class Protocol {
 					if (inputArgumentList.length == 1 && account.checkPassword(inputArgumentList[0].getBytes())) {
 						clientSession.disconnectFromChannel();
 						clientSession.unSetAccount();
-						account.delete();
+						clientSession.server.removeAccount(account);
 						state = ENTRANCE;
 						return "Account deleted. Returning to Entrance";
 					}

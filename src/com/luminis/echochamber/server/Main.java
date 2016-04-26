@@ -4,7 +4,7 @@ public class Main {
 	static private int port = 4444;
 
 	public static void main(String[] args) {
-		Server server = new Server(port);
+		Server server = new Server(port, "accounts.ser");
 		server.start();
 	}
 }

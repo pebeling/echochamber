@@ -16,6 +16,7 @@ class Session extends Thread {
 	private PrintWriter toClient;
 	private BufferedReader fromClient;
 	private UUID id;
+	volatile boolean running;
 
 	Session(Socket socket, Server server) {
 		super("Session");
@@ -25,11 +26,12 @@ class Session extends Thread {
 		account = null;
 		id = Security.createUUID();
 		super.setName("Session " + id);
+		running = true;
 	}
 
 	public void run() {
 		try {
-			server.addSession(id);
+			server.addSession(this);
 			Server.logger.info("Session started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
 			toClient = new PrintWriter(socket.getOutputStream(), true);
 			fromClient = new BufferedReader(
@@ -37,24 +39,24 @@ class Session extends Thread {
 			);
 			Protocol protocol = new Protocol(this);
 
-			messageToClient(TextColors.colorServermessage(protocol.welcomeMessage()));
+			messageClient(TextColors.colorServermessage(protocol.welcomeMessage()));
 
 			String inputLine, outputLine;
-			while (true) {
+			while (running) {
 				inputLine = fromClient.readLine();
 				if (inputLine == null) {
 					Server.logger.info("Client in session at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has disconnected from server");
-					messageToClient("Disconnected by client");
-					break;
+					messageClient("Disconnected by client");
+					running = false;
 				} else {
 					outputLine = protocol.evaluateInput(inputLine.replaceAll("\\p{C}", "")); // strip non-printable characters by unicode regex
 					if (outputLine == null) {
 						Server.logger.info("Server has closed the connection to client");
-						messageToClient("Disconnected by server");
-						break;
+						messageClient("Disconnected by server");
+						running = false;
 					}
 					else if (!outputLine.equals("")) {
-						messageToClient(TextColors.colorServermessage(outputLine));
+						messageClient(TextColors.colorServermessage(outputLine));
 					}
 				}
 			}
@@ -64,7 +66,7 @@ class Session extends Thread {
 			toClient.close();
 			socket.close();
 			Server.logger.info("Session terminated");
-			server.removeSession(id);
+			server.removeSession(this);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -97,10 +99,6 @@ class Session extends Thread {
 		channel.shout(argument, this);
 	}
 
-	void message(String message) {
-		messageToClient(message);
-	}
-
 	ArrayList<Session> sessionsInSameChannel() {
 		return channel.getConnectedSessions();
 	}
@@ -122,12 +120,23 @@ class Session extends Thread {
 		if (this.account != null) {
 			Server.logger.info("Session unbound from account " + account);
 			this.account.logout();
-			this.account = null;
+			if (!this.account.isPermanent()) {
+				this.server.removeAccount(this.account);
+			}
+			this.account = null;;
 		}
 		else Server.logger.warn("Session not bound to an account");
 	}
 
-	private void messageToClient(String message){
-		toClient.println(message);
+	void messageClient(String message){
+		if (toClient != null) {
+			toClient.println(message);
+		} else {
+			Server.logger.warn("Message sent to disconnected client");
+		}
+	}
+
+	void exit() {
+		running = false;
 	}
 }
