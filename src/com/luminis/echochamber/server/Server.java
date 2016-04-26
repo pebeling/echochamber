@@ -271,6 +271,14 @@ class Server {
 	}
 
 	void start() {
+		Runtime.getRuntime().addShutdownHook(new Thread("Shutdown") {
+			@Override
+			public void run() {
+				Server.logger.info("Shutting down...");
+				shutdown();
+				Server.logger.info("Stopped");
+			}
+		});
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
 			logger.info("Server started.");
 			while (true) {
@@ -325,6 +333,10 @@ class Server {
 
 	int numberOfConnectedClients() {
 		return numberOfConnectedClients;
+	}
+
+	private void shutdown() {
+		logger.info("Serializing");
 	}
 //	Channel getChannelByName(String channelname) {
 //		for (Channel channel : channels) {
