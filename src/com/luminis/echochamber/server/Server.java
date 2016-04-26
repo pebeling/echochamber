@@ -1,12 +1,13 @@
 package com.luminis.echochamber.server;
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.*;
+import java.util.ArrayList;
 
 class Channel {
 	private volatile ArrayList<Session> connectedSessions;
@@ -184,7 +185,7 @@ class Server {
 			Server.logger.error("Cannot write file");
 		}
 		Server.logger.info("Server stopped");
-		LogManager.shutdown();
+		//LogManager.shutdown(); // TODO fix manual shutdown of logging
 	}
 
 	synchronized void exit() {
