@@ -179,11 +179,12 @@ class Protocol {
 				}
 
 			case SETNAME:
+				account = new Account(inputArgumentList[0]); // Create temporary account
 				try {
-					account = new Account(clientSession.server, inputArgumentList[0]);
-					clientSession.setAccount(account); // Create temporary account
 					clientSession.server.addAccount(account);
-				} catch (Exception e){
+					clientSession.setAccount(account);
+				} catch (Exception e) {
+					account.delete();
 					return "Unable to create temporary account with nickname: " + inputArgumentList[0];
 				}
 				state = TRANSIENT;
@@ -191,7 +192,7 @@ class Protocol {
 				return "";
 
 			case SETPWD:
-				clientSession.account.makePermanent(clientSession.server, inputArgumentList[0].getBytes());
+				clientSession.account.makePermanent(inputArgumentList[0].getBytes());
 				state = LOGGED_IN;
 				return "Account now permanent";
 

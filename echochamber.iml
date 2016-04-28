@@ -60,6 +60,7 @@
           <root url="jar://$USER_HOME$/.ivy2/cache/org.zeromq/jeromq/jars/jeromq-0.3.5.jar!/" />
           <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.commons/commons-compress/jars/commons-compress-1.10.jar!/" />
           <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.commons/commons-csv/jars/commons-csv-1.2.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.cedarsoftware/json-io/bundles/json-io-4.4.0.jar!/" />
         </CLASSES>
         <JAVADOC>
           <root url="jar://$USER_HOME$/.ivy2/cache/junit/junit/javadocs/junit-4.12-javadoc.jar!/" />
@@ -87,6 +88,7 @@
           <root url="jar://$USER_HOME$/.ivy2/cache/org.zeromq/jeromq/javadocs/jeromq-0.3.5-javadoc.jar!/" />
           <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.commons/commons-compress/javadocs/commons-compress-1.10-javadoc.jar!/" />
           <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.commons/commons-csv/javadocs/commons-csv-1.2-javadoc.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.cedarsoftware/json-io/javadocs/json-io-4.4.0-javadoc.jar!/" />
         </JAVADOC>
         <SOURCES>
           <root url="jar://$USER_HOME$/.ivy2/cache/junit/junit/sources/junit-4.12-sources.jar!/" />
@@ -117,6 +119,7 @@
           <root url="jar://$USER_HOME$/.ivy2/cache/org.zeromq/jeromq/sources/jeromq-0.3.5-sources.jar!/" />
           <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.commons/commons-compress/sources/commons-compress-1.10-sources.jar!/" />
           <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.commons/commons-csv/sources/commons-csv-1.2-sources.jar!/" />
+          <root url="jar://$USER_HOME$/.ivy2/cache/com.cedarsoftware/json-io/sources/json-io-4.4.0-sources.jar!/" />
         </SOURCES>
       </library>
     </orderEntry>

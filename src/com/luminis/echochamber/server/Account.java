@@ -12,8 +12,8 @@ class Account implements Serializable {
 	transient Session currentSession;
 
 	private String username;
-	private byte[] salt;
-	private byte[] passwordHash;
+	private String salt;
+	private String passwordHash;
 
 	private boolean permanent;
 	transient private boolean online;
@@ -23,10 +23,11 @@ class Account implements Serializable {
 	ArrayList<Account> pendingSentFriendRequests = null;
 	ArrayList<Account> pendingReceivedFriendRequests = null;
 
-	Account(Server server, String username, byte[] pwd) throws Exception {
+	Account(String username, byte[] pwd) {
 		if (pwd != null) {
-			salt = Security.getNewSalt();
-			passwordHash = Security.calculateHash(Security.saltPassword(salt, pwd));
+			byte[] byteSalt = Security.getNewSalt();
+			salt = Security.byteArrayToHexString(byteSalt);
+			passwordHash = Security.byteArrayToHexString(Security.calculateHash(Security.saltPassword(byteSalt, pwd)));
 			permanent = true;
 
 			friends = new ArrayList<>();
@@ -38,8 +39,6 @@ class Account implements Serializable {
 			permanent = false;
 		}
 
-		if (!(server.getAccountByName(username) == null)) throw new Exception();
-
 		id = Security.createUUID();
 
 		this.username = username;
@@ -49,11 +48,13 @@ class Account implements Serializable {
 		online = false;
 		lastLoginDate = null;
 
-		Server.logger.info("Created " + (permanent ? "persistent" : "temporary") + " account " + this);
+		if (username != null) {
+			Server.logger.info("Created " + (permanent ? "persistent" : "temporary") + " account " + this);
+		}
 	}
 
-	Account(Server server, String username) throws Exception { // Create non-persistent account that has no friend information
-		this(server, username, null);
+	Account(String username) { // Create non-persistent account that has no friend information
+		this(username, null);
 	}
 
 	@Override
@@ -113,10 +114,11 @@ class Account implements Serializable {
 	}
 
 	boolean checkPassword(byte[] pwd) {
-		byte[] hashedPassword = Security.calculateHash(Security.saltPassword(salt, pwd));
-		boolean passwordMatch = passwordHash != null && hashedPassword.length == passwordHash.length;
+		byte[] hashedPassword = Security.calculateHash(Security.saltPassword(Security.hexStringToByteArray(salt), pwd));
+		byte[] storedPasswordHash = Security.hexStringToByteArray(passwordHash);
+		boolean passwordMatch = passwordHash != null && hashedPassword.length == storedPasswordHash.length;
 		for(int i=0; i < hashedPassword.length; i++) {
-			passwordMatch = passwordMatch && (hashedPassword[i] == passwordHash[i]);
+			passwordMatch = passwordMatch && (hashedPassword[i] == storedPasswordHash[i]);
 		}
 		Server.logger.info((passwordMatch?"SUCCESSFUL":"FAILED") + " authentication attempt for account " + this);
 		return passwordMatch;
@@ -161,10 +163,11 @@ class Account implements Serializable {
 		}
 	}
 
-	synchronized void makePermanent(Server server, byte[] pwd) {
+	synchronized void makePermanent(byte[] pwd) {
 		if (!permanent) {
-			salt = Security.getNewSalt();
-			passwordHash = Security.calculateHash(Security.saltPassword(salt, pwd));
+			byte[] byteSalt = Security.getNewSalt();
+			salt = Security.byteArrayToHexString(byteSalt);
+			passwordHash = Security.byteArrayToHexString(Security.calculateHash(Security.saltPassword(byteSalt, pwd)));
 			permanent = true;
 
 			friends = new ArrayList<>();

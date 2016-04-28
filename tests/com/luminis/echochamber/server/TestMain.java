@@ -56,7 +56,7 @@ public class TestMain {
 	public void testCreateAccount() throws Exception {
 		Server server = new Server(4444);
 		Date start = new Date();
-		Account account = new Account(server, "TEST_NAME", new byte[] {'P', 'W', 'D'});
+		Account account = new Account("TEST_NAME", new byte[] {'P', 'W', 'D'});
 		Date end = new Date();
 
 		assertEquals(account.getName(), "TEST_NAME");
@@ -75,7 +75,7 @@ public class TestMain {
 	@Test
 	public void testDeleteAccount() throws Exception {
 		Server server = new Server(4444);
-		Account account = new Account(server, "TEST_NAME", new byte[] {'P', 'W', 'D'});
+		Account account = new Account("TEST_NAME", new byte[] {'P', 'W', 'D'});
 
 		account.delete();
 //		assertFalse(account.checkPassword(new byte[] {'P', 'W', 'D'}));
@@ -88,7 +88,7 @@ public class TestMain {
 
 //	@Test
 //	public void testDeleteAccountWithSession() throws Exception {
-//		Account account = new Account(server, "TEST_NAME", "TEST_NAME", new byte[] {});
+//		Account account = new Account("TEST_NAME", "TEST_NAME", new byte[] {});
 //		account.login();
 //
 //		account.delete();
@@ -98,10 +98,10 @@ public class TestMain {
 	@Test
 	public void testDeleteAccountWithFriendData() throws Exception {
 		Server server = new Server(4444);
-		Account accountClark = new Account(server, "Clark", new byte[] {});
-		Account accountBruce = new Account(server, "Bruce", new byte[] {});
-		Account accountDiana = new Account(server, "Diana", new byte[] {});
-		Account accountZod = new Account(server, "Zod", new byte[] {});
+		Account accountClark = new Account("Clark", new byte[] {});
+		Account accountBruce = new Account("Bruce", new byte[] {});
+		Account accountDiana = new Account("Diana", new byte[] {});
+		Account accountZod = new Account("Zod", new byte[] {});
 
 		accountClark.sendFriendRequest(accountBruce);
 		accountClark.sendFriendRequest(accountDiana);
@@ -120,7 +120,7 @@ public class TestMain {
 	@Test
 	public void testAccountPasswordCheck() throws Exception {
 		Server server = new Server(4444);
-		Account account = new Account(server, "TEST_NAME", new byte[] {'P', 'W', 'D'});
+		Account account = new Account("TEST_NAME", new byte[] {'P', 'W', 'D'});
 		assertTrue(account.checkPassword(new byte[] {'P', 'W', 'D'}));
 		assertFalse(account.checkPassword(new byte[] {'Q', 'E', 'D'}));
 	}
@@ -128,8 +128,8 @@ public class TestMain {
 	@Test
 	public void testFriendRequest() throws Exception {
 		Server server = new Server(4444);
-		Account accountBob = new Account(server, "Bob", new byte[] {});
-		Account accountEve = new Account(server, "Eve", new byte[] {});
+		Account accountBob = new Account("Bob", new byte[] {});
+		Account accountEve = new Account("Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 
@@ -143,8 +143,8 @@ public class TestMain {
 	@Test
 	public void testFriendRequestCancel() throws Exception {
 		Server server = new Server(4444);
-		Account accountBob = new Account(server, "Bob", new byte[] {});
-		Account accountEve = new Account(server, "Eve", new byte[] {});
+		Account accountBob = new Account("Bob", new byte[] {});
+		Account accountEve = new Account("Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 		accountBob.cancelFriendRequest(accountEve);
@@ -156,8 +156,8 @@ public class TestMain {
 	@Test
 	public void testFriendRequestRefusal() throws Exception {
 		Server server = new Server(4444);
-		Account accountBob = new Account(server, "Bob", new byte[] {});
-		Account accountEve = new Account(server, "Eve", new byte[] {});
+		Account accountBob = new Account("Bob", new byte[] {});
+		Account accountEve = new Account("Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 		accountEve.refuseFriendRequest(accountBob);
@@ -169,8 +169,8 @@ public class TestMain {
 	@Test
 	public void testFriendRequestAcceptance() throws Exception {
 		Server server = new Server(4444);
-		Account accountBob = new Account(server, "Bob", new byte[] {});
-		Account accountEve = new Account(server, "Eve", new byte[] {});
+		Account accountBob = new Account("Bob", new byte[] {});
+		Account accountEve = new Account("Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 		accountEve.acceptFriendRequest(accountBob);
@@ -185,8 +185,8 @@ public class TestMain {
 	@Test
 	public void testUnFriend() throws Exception {
 		Server server = new Server(4444);
-		Account accountBob = new Account(server, "Bob", new byte[] {});
-		Account accountEve = new Account(server, "Eve", new byte[] {});
+		Account accountBob = new Account("Bob", new byte[] {});
+		Account accountEve = new Account("Eve", new byte[] {});
 
 		accountBob.sendFriendRequest(accountEve);
 		accountEve.acceptFriendRequest(accountBob);
@@ -198,7 +198,7 @@ public class TestMain {
 
 //	@Test
 //	public void testSessionStart() throws Exception {
-//		Account account = new Account(server, "Bob", new byte[] {});
+//		Account account = new Account("Bob", new byte[] {});
 //		account.login();
 //		Session session = account.currentSession;
 //

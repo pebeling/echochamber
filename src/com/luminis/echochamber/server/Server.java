@@ -1,13 +1,20 @@
 package com.luminis.echochamber.server;
 
-
+import com.cedarsoftware.util.io.JsonIoException;
+import com.cedarsoftware.util.io.JsonReader;
+import com.cedarsoftware.util.io.JsonWriter;
+import com.sun.deploy.util.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.List;
 
 class Channel {
 	private volatile ArrayList<Session> connectedSessions;
@@ -86,19 +93,15 @@ class Server {
 
 	Server(int port, String filename) {
 		this(port);
-
-		try (
-			InputStream file = new FileInputStream(filename);
-			InputStream buffer = new BufferedInputStream(file);
-			ObjectInput input = new ObjectInputStream (buffer)
-		) {
-			accounts = (ArrayList<Account>)input.readObject();
-		}
-		catch(ClassNotFoundException ex){
-			System.out.println("Can't read from file '" + filename + "': Class not found");
+		try {
+			List<String> text = Files.readAllLines(Paths.get("accounts.json"), StandardCharsets.UTF_8);
+			accounts = (ArrayList<Account>) JsonReader.jsonToJava(StringUtils.join(text, ""));
 		}
 		catch(IOException ex){
 			System.out.println("Can't read from file '" + filename + "'.");
+		}
+		catch(JsonIoException ex) {
+			System.out.println("Can't read from file '" + filename + "': Account format doesn't match.");
 		}
 		if (accounts == null) accounts = new ArrayList<>();
 		Server.logger.info("Successfully imported " + accounts.size() + " accounts");
@@ -154,8 +157,14 @@ class Server {
 		numberOfConnectedClients--;
 	}
 
-	synchronized void addAccount(Account account) {
-		accounts.add(account);
+	synchronized void addAccount(Account account) throws Exception {
+		Account accountExists = getAccountByName(account.getName());
+		if ( accountExists == null) {
+			accounts.add(account);
+		} else {
+			logger.warn("Can't add account " + account + " to server because another account with the same username exists: " + accountExists);
+			throw new Exception();
+		}
 	}
 
 	synchronized void removeAccount(Account account) {
@@ -171,15 +180,11 @@ class Server {
 		Server.logger.info("Shutting down...");
 		Server.logger.info("Saving accounts...");
 		try (
-			OutputStream file = new FileOutputStream("accounts.ser");
-			OutputStream buffer = new BufferedOutputStream(file);
-			ObjectOutput output = new ObjectOutputStream(buffer)
+			PrintWriter out = new PrintWriter("accounts.json")
 		) {
-			output.writeObject(accounts);
+			out.print(JsonWriter.formatJson(JsonWriter.objectToJson(accounts)));
+			out.close();
 			Server.logger.info("Accounts saved successfully");
-		}
-		catch(NotSerializableException ex) {
-			Server.logger.error("Class not serializable");
 		}
 		catch(IOException ex){
 			Server.logger.error("Cannot write file");
