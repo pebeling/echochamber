@@ -64,10 +64,10 @@ public class TestMain {
 		assertEquals(account.friends, new ArrayList<Account>());
 		assertEquals(account.pendingSentFriendRequests, new ArrayList<Account>());
 		assertEquals(account.pendingReceivedFriendRequests, new ArrayList<Account>());
-		//assertTrue(account.active);
+		//assertTrue(connectedAccount.active);
 		assertEquals(account.currentSession, null);
 
-//		Date creation = account.creationDate;
+//		Date creation = connectedAccount.creationDate;
 //		assertTrue(creation.after(start) || creation.equals(start));
 //		assertTrue(creation.before(end) || creation.equals(end));
 	}
@@ -78,8 +78,8 @@ public class TestMain {
 		Account account = new Account("TEST_NAME", new byte[] {'P', 'W', 'D'});
 
 		account.delete();
-//		assertFalse(account.checkPassword(new byte[] {'P', 'W', 'D'}));
-		//assertFalse(account.active);
+//		assertFalse(connectedAccount.checkPassword(new byte[] {'P', 'W', 'D'}));
+		//assertFalse(connectedAccount.active);
 		assertEquals(account.currentSession, null);
 		assertEquals(account.friends, new ArrayList<Account>());
 		assertEquals(account.pendingSentFriendRequests, new ArrayList<Account>());
@@ -88,11 +88,11 @@ public class TestMain {
 
 //	@Test
 //	public void testDeleteAccountWithSession() throws Exception {
-//		Account account = new Account("TEST_NAME", "TEST_NAME", new byte[] {});
-//		account.login();
+//		Account connectedAccount = new Account("TEST_NAME", "TEST_NAME", new byte[] {});
+//		connectedAccount.login();
 //
-//		account.delete();
-//		assertEquals(account.currentSession, null);
+//		connectedAccount.delete();
+//		assertEquals(connectedAccount.currentSession, null);
 //	}
 
 	@Test
@@ -198,12 +198,12 @@ public class TestMain {
 
 //	@Test
 //	public void testSessionStart() throws Exception {
-//		Account account = new Account("Bob", new byte[] {});
-//		account.login();
-//		Session session = account.currentSession;
+//		Account connectedAccount = new Account("Bob", new byte[] {});
+//		connectedAccount.login();
+//		Session session = connectedAccount.currentSession;
 //
 //		assertTrue(session.active);
 //		assertEquals(session.currentChannel.getName(), Channel.defaultChannel.getName());
-//		assertTrue(session.currentChannel.participants.contains(account));
+//		assertTrue(session.currentChannel.participants.contains(connectedAccount));
 //	}
 }

@@ -33,19 +33,19 @@ class Channel {
 	synchronized void subscribe(Session session) {
 		if (!connectedSessions.contains(session)) {
 			connectedSessions.add(session);
-			broadcast("User " + TextColors.colorUserName(session.account.getName()) + " joined channel " + this);
+			broadcast("User " + TextColors.colorUserName(session.connectedAccount.getName()) + " joined channel " + this);
 		}
 	}
 
 	synchronized void unSubscribe(Session session) {
 		if (connectedSessions.contains(session)) {
-			broadcast("User " + TextColors.colorUserName(session.account.getName()) + " left channel " + this);
+			broadcast("User " + TextColors.colorUserName(session.connectedAccount.getName()) + " left channel " + this);
 			connectedSessions.remove(session);
 		}
 	}
 
 	synchronized void shout(String message, Session sender) {
-		broadcast(TextColors.colorUserName(sender.account.getName()) + "> " + message);
+		broadcast(TextColors.colorUserName(sender.connectedAccount.getName()) + "> " + message);
 	}
 
 //	synchronized private void broadcast(String messageClient, Session sender) {
@@ -63,7 +63,7 @@ class Channel {
 	}
 
 //	synchronized public ArrayList<String> listSessions() {
-//		return connectedSessions.stream().map(session -> session.account.getName()).collect(Collectors.toCollection(ArrayList::new));
+//		return connectedSessions.stream().map(session -> session.connectedAccount.getName()).collect(Collectors.toCollection(ArrayList::new));
 //	}
 
 	ArrayList<Session> getConnectedSessions() {

@@ -173,7 +173,7 @@ class Account implements Serializable {
 			friends = new ArrayList<>();
 			pendingSentFriendRequests = new ArrayList<>();
 			pendingReceivedFriendRequests = new ArrayList<>();
-			Server.logger.info("Changed transient account " + this + " to permanent");
+			Server.logger.info("Changed transient acount " + this + " to permanent");
 		}
 		else Server.logger.warn("Account " + this + " is already a permanent account");
 	}
@@ -188,6 +188,6 @@ class Account implements Serializable {
 
 	String infoString() {
 		return "Name: " + this.getName() + ", Type: " + (permanent ? "Permanent" : "Transient") + ", Status: "
-				+ (online ? "Online" : "Offline") + ", Current channel: " + (currentSession == null ? "none" : currentSession.channel);
+				+ (online ? "Online" : "Offline") + ", Current channel: " + (currentSession == null ? "none" : currentSession.connectedChannel);
 	}
 }
