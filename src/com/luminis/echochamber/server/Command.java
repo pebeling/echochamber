@@ -8,12 +8,6 @@ abstract class Command {
 	private int minArgs, maxArgs;
 	private boolean greedyLastArgument;
 
-//	static String[] commandMasterList = {
-//		"help", "setname", "setpwd", "login", "logout", "accounts", "sessions", "exit",
-//		"users", "whisper", "shout", "delete", "cancel", "friends", "befriend", "unfriend",
-//		"accept", "refuse", "forget", "nop", "invalid"
-//	};
-
 	String getName() {
 		return commandString;
 	}

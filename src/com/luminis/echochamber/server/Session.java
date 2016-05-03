@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+//import java.lang.reflect.Constructor;
 import java.net.Socket;
 import java.util.*;
 
@@ -99,39 +100,45 @@ class Session extends Thread {
 	}
 
 	private void registerCommands() {
-//		for (String c : Command.commandMasterList) {
-//			String classname = c + "Command";
+//		String[] commandList = {
+//			"help", "setname", "setpwd", "login", "logout", "accounts", "sessions", "exit",
+//			"users", "whisper", "shout", "delete", "cancel", "friends", "befriend", "unfriend",
+//			"accept", "refuse", "forget", "no", "invalid"
+//		};
+//
+//		for (String c : commandList) {
+//			String classname = "com.luminis.echochamber.server." + c + "Command";
 //			try {
 //				Class cls = Class.forName(classname);
 //				Constructor commandConstructor = cls.getDeclaredConstructor(Session.class);
 //				commandConstructor.setAccessible(true);
 //				Command command = (Command)commandConstructor.newInstance(this);
-//				parser.addCommand(c, command);
+//				parser.addCommand(command);
 //			} catch (Throwable e) {
-//				System.err.println(e); // command class not implemented
+//				Server.logger.warn("Command " + c + " (" + classname + ") not implemented"); // command class not implemented
 //			}
 //		}
-		parser.addCommand("help", 		new helpCommand(this));
-		parser.addCommand("setname", 	new setnameCommand(this));
-		parser.addCommand("setpwd", 	new setpwdCommand(this));
-		parser.addCommand("login", 		new loginCommand(this));
-		parser.addCommand("logout", 	new logoutCommand(this));
-		parser.addCommand("accounts", 	new accountsCommand(this));
-		parser.addCommand("sessions", 	new sessionsCommand(this));
-		parser.addCommand("exit", 		new exitCommand(this));
-		parser.addCommand("users", 		new usersCommand(this));
-		parser.addCommand("whisper", 	new whisperCommand(this));
-		parser.addCommand("shout", 		new shoutCommand(this));
-		parser.addCommand("delete", 	new deleteCommand(this));
-		parser.addCommand("cancel", 	new cancelCommand(this));
-		parser.addCommand("friends", 	new friendsCommand(this));
-		parser.addCommand("befriend", 	new befriendCommand(this));
-		parser.addCommand("unfriend", 	new unfriendCommand(this));
-		parser.addCommand("accept", 	new acceptCommand(this));
-		parser.addCommand("refuse", 	new refuseCommand(this));
-		parser.addCommand("forget", 	new forgetCommand(this));
-		parser.addCommand("nop", 		new noCommand(this));
-		parser.addCommand("invalid", 	new invalidCommand(this));
+		parser.addCommand(new helpCommand		(this));
+		parser.addCommand(new setnameCommand	(this));
+		parser.addCommand(new setpwdCommand		(this));
+		parser.addCommand(new loginCommand		(this));
+		parser.addCommand(new logoutCommand		(this));
+		parser.addCommand(new accountsCommand	(this));
+		parser.addCommand(new sessionsCommand	(this));
+		parser.addCommand(new exitCommand		(this));
+		parser.addCommand(new usersCommand		(this));
+		parser.addCommand(new whisperCommand	(this));
+		parser.addCommand(new shoutCommand		(this));
+		parser.addCommand(new deleteCommand		(this));
+		parser.addCommand(new cancelCommand		(this));
+		parser.addCommand(new friendsCommand	(this));
+		parser.addCommand(new befriendCommand	(this));
+		parser.addCommand(new unfriendCommand	(this));
+		parser.addCommand(new acceptCommand		(this));
+		parser.addCommand(new refuseCommand		(this));
+		parser.addCommand(new forgetCommand		(this));
+		parser.addCommand(new noCommand			(this));
+		parser.addCommand(new invalidCommand	(this));
 	}
 
 	@Override
@@ -313,7 +320,6 @@ class Session extends Thread {
 
 	void shoutCommandImp(List<String> arguments) {
 		broadcastToChannel(arguments.get(0));
-		messageClient("");
 	}
 
 	void deleteCommandImp(List<String> arguments) {

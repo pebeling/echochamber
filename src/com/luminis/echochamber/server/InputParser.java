@@ -10,8 +10,8 @@ class InputParser {
 	Command command;
 	String arguments;
 
-	void addCommand(String name, Command command) {
-		commands.put(name, command);
+	void addCommand(Command command) {
+		commands.put(command.getName(), command);
 	}
 
 	void evaluateInput(String input) {
