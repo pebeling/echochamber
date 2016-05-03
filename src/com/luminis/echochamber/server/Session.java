@@ -1,5 +1,7 @@
 package com.luminis.echochamber.server;
 
+import com.cedarsoftware.util.io.JsonWriter;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -73,11 +75,13 @@ class Session extends Thread {
 					state = EXIT;
 				} else {
 					parser.evaluateInput(inputLine);
-					if (state.isValid(parser.command.getName()) || parser.command.getName().equals("") ) {
+					if (parser.command == null) {
+						Server.logger.error("Null command received");
+					} else if (state.isValid(parser.command.getName()) || parser.command.getName().equals("no") || parser.command.getName().equals("invalid")) {
 						try {
 							parser.command.execute(parser.arguments);
 						} catch (Exception e) {
-							messageClient("Invalid arguments for command " + parser.command.getName() + ": " + e.getMessage());
+							messageClient(e.getMessage() + " for command '" + parser.command.getName() + "'. " + parser.command.getUsage());
 						}
 					} else {
 						messageClient("Command not available in this context");
@@ -215,41 +219,41 @@ class Session extends Thread {
 		state = EXIT;
 	}
 	
-	void helpCommandImp(List<String> arguments) {
+	void helpCommandImp(Map<String, String> arguments) {
 		if (arguments.size() == 0) {
 			messageClient("Available commands: " + String.join(", ", state.validCommands));
-		} else if (arguments.size() == 1) {
-			String command = arguments.get(0);
+		} else if (arguments.get("command name") != null) {
+			String command = arguments.get("command name");
 			if (state.isValid(command)) {
-				messageClient(parser.commands.get(command).getDescription());
+				messageClient(parser.commands.get(command).getDescription() + " " + parser.commands.get(command).getUsage());
 			} else {
 				messageClient("Error: No such command \"" + command + "\"");
 			}
 		}
 	}
 
-	void setnameCommandImp(List<String> arguments) {
-		Account account = new Account(arguments.get(0)); // Create temporary account
+	void setnameCommandImp(Map<String, String> arguments) {
+		Account account = new Account(arguments.get("username")); // Create temporary account
 		try {
 			server.addAccount(account);
 			setAccount(account);
 		} catch (Exception e) {
 			account.delete();
-			messageClient("Unable to create temporary account with nickname: " + arguments.get(0));
+			messageClient("Unable to create temporary account with nickname: " + arguments.get("username"));
 		}
 		state = TRANSIENT;
 		connectToChannel(Server.defaultChannel);
 	}
 
-	void setpwdCommandImp(List<String> arguments) {
-		connectedAccount.makePermanent(arguments.get(0).getBytes());
+	void setpwdCommandImp(Map<String, String> arguments) {
+		connectedAccount.makePermanent(arguments.get("password").getBytes());
 		state = LOGGED_IN;
 		messageClient("Account now permanent");
 	}
 
-	void loginCommandImp(List<String> arguments) {
-		Account account = server.getAccountByName(arguments.get(0));
-		if (account != null && account.checkPassword(arguments.get(1).getBytes())) {
+	void loginCommandImp(Map<String, String> arguments) {
+		Account account = server.getAccountByName(arguments.get("username"));
+		if (account != null && account.checkPassword(arguments.get("password").getBytes())) {
 			if (account.isOnline()) {
 				messageClient("Account already logged in");
 			}
@@ -265,14 +269,14 @@ class Session extends Thread {
 		}
 	}
 
-	void logoutCommandImp(List<String> arguments) {
+	void logoutCommandImp(Map<String, String> arguments) {
 		disconnectFromChannel();
 		unSetAccount();
 		state = ENTRANCE;
 		messageClient("Returning to Entrance");
 	}
 
-	void accountsCommandImp(List<String> arguments) {
+	void accountsCommandImp(Map<String, String> arguments) {
 		String list = "";
 		for (Account a : server.accounts) {
 			list += a.infoString() + "\n";
@@ -280,7 +284,7 @@ class Session extends Thread {
 		messageClient(list);
 	}
 
-	void sessionsCommandImp(List<String> arguments) {
+	void sessionsCommandImp(Map<String, String> arguments) {
 		String list = "";
 		for (Session s : server.sessions) {
 			list += s.toString() + "\n";
@@ -288,12 +292,12 @@ class Session extends Thread {
 		messageClient(list);
 	}
 
-	void exitCommandImp(List<String> arguments) {
+	void exitCommandImp(Map<String, String> arguments) {
 		messageClient("Disconnected by server");
 		state = EXIT;
 	}
 
-	void usersCommandImp(List<String> arguments) {
+	void usersCommandImp(Map<String, String> arguments) {
 		if(arguments.size() == 0) {
 			String list = "";
 			for (Session session : sessionsInSameChannel()) {
@@ -306,31 +310,34 @@ class Session extends Thread {
 		} else messageClient("??"); // TODO: implement once users can create channels
 	}
 
-	void whisperCommandImp(List<String> arguments) {
-		Account account = server.getAccountByName(arguments.get(0));
+	void whisperCommandImp(Map<String, String> arguments) {
+		Account account = server.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No account with username " + arguments.get(0) + " found");
+			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (account.isOnline()) {
-			account.currentSession.messageClient(connectedAccount.getName() + " whispers: " + arguments.get(1));
+			account.currentSession.messageClient(connectedAccount.getName() + " whispers: " + arguments.get("message"));
 			messageClient("You whispered a message to " + account.getName());
 		} else {
 			messageClient("User " + account.getName() + " is not online");
 		}
 	}
 
-	void shoutCommandImp(List<String> arguments) {
-		broadcastToChannel(arguments.get(0));
+	void shoutCommandImp(Map<String, String> arguments) {
+		if (arguments.get("message") != null) {
+			broadcastToChannel(arguments.get("message"));
+		}
 	}
 
-	void deleteCommandImp(List<String> arguments) {
+	void deleteCommandImp(Map<String, String> arguments) {
 		if(state == LOGGED_IN) {
 			state = DELETE_CONF;
 			messageClient("This will delete your account!\nType /delete <password> to confirm!");
 		} else if (state == DELETE_CONF) {
-			if (arguments.size() == 1 && connectedAccount.checkPassword(arguments.get(0).getBytes())) {
+			Account account = connectedAccount;
+			if (arguments.size() == 1 && account.checkPassword(arguments.get("password").getBytes())) {
 				disconnectFromChannel();
 				unSetAccount();
-				server.removeAccount(connectedAccount);
+				server.removeAccount(account);
 				state = ENTRANCE;
 				messageClient("Account deleted. Returning to Entrance");
 			}
@@ -341,12 +348,12 @@ class Session extends Thread {
 		}
 	}
 
-	void cancelCommandImp(List<String> arguments) {
+	void cancelCommandImp(Map<String, String> arguments) {
 		state = LOGGED_IN;
 		messageClient("Delete cancelled");
 	}
 
-	void friendsCommandImp(List<String> arguments) {
+	void friendsCommandImp(Map<String, String> arguments) {
 		String friendStatus = "";
 		friendStatus += "Current friends:\n";
 		for (Account friend : connectedAccount.friends) {
@@ -363,10 +370,10 @@ class Session extends Thread {
 		messageClient(friendStatus);
 	}
 
-	void befriendCommandImp(List<String> arguments) {
-		Account account = server.getAccountByName(arguments.get(0));
+	void befriendCommandImp(Map<String, String> arguments) {
+		Account account = server.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No account with username " + arguments.get(0) + " found");
+			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (!account.isPermanent()) {
 			messageClient("You can only send friend requests to permanent accounts");
 		} else if (account.equals(connectedAccount)) {
@@ -377,10 +384,10 @@ class Session extends Thread {
 		}
 	}
 
-	void unfriendCommandImp(List<String> arguments) {
-		Account account = server.getAccountByName(arguments.get(0));
+	void unfriendCommandImp(Map<String, String> arguments) {
+		Account account = server.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No connectedAccount with username " + arguments.get(0) + " found");
+			messageClient("No connectedAccount with username " + arguments.get("username") + " found");
 		} else if (!connectedAccount.friends.contains(account)) {
 			messageClient(account.getName() + "is not in your friend list");
 		} else {
@@ -389,10 +396,10 @@ class Session extends Thread {
 		}
 	}
 
-	void acceptCommandImp(List<String> arguments) {
-		Account account  = server.getAccountByName(arguments.get(0));
+	void acceptCommandImp(Map<String, String> arguments) {
+		Account account  = server.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No account with username " + arguments.get(0) + " found");
+			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (!connectedAccount.pendingReceivedFriendRequests.contains(account)) {
 			messageClient("No pending friend request from " + account.getName());
 		} else {
@@ -401,10 +408,10 @@ class Session extends Thread {
 		}
 	}
 
-	void refuseCommandImp(List<String> arguments) {
-		Account account = server.getAccountByName(arguments.get(0));
+	void refuseCommandImp(Map<String, String> arguments) {
+		Account account = server.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No account with username " + arguments.get(0) + " found");
+			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (!connectedAccount.pendingReceivedFriendRequests.contains(account)) {
 			messageClient("No pending friend request from " + account.getName());
 		} else {
@@ -413,10 +420,10 @@ class Session extends Thread {
 		}
 	}
 
-	void forgetCommandImp(List<String> arguments) {
-		Account account = server.getAccountByName(arguments.get(0));
+	void forgetCommandImp(Map<String, String> arguments) {
+		Account account = server.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No account with username " + arguments.get(0) + " found");
+			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (!connectedAccount.pendingSentFriendRequests.contains(account)) {
 			messageClient("No outstanding friend request to " + account.getName());
 		} else {
@@ -425,14 +432,21 @@ class Session extends Thread {
 		}
 	}
 
-	void noCommandImp(List<String> arguments) {
+	void noCommandImp(Map<String, String> arguments) {
 		if (state == ENTRANCE) {
 			helpCommandImp(arguments);
+		} else if (state == LOGGED_IN || state == TRANSIENT) {
+			arguments.put("message", arguments.get("arguments"));
+			shoutCommandImp(arguments);
 		}
 	}
 	
-	void invalidCommandImp(List<String> arguments) {
-		messageClient("Invalid command '" + arguments.get(0) + "'");
+	void invalidCommandImp(Map<String, String> arguments) {
+		if ( arguments.get("command") == null) {
+			messageClient("Invalid");
+		} else {
+			messageClient("Invalid command '" + arguments.get("command") + "'");
+		}
 	}
 	
 

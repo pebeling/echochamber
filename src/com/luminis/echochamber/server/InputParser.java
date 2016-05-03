@@ -25,10 +25,10 @@ class InputParser {
 			inputCommand = matcher.group(2);
 			inputArguments = matcher.group(3);
 			if (inputCommand == null || inputCommand.equals("")) {
-				inputCommand = "nop";
+				inputCommand = "no";
 			}
 		} else {
-			inputCommand = "nop";
+			inputCommand = "no";
 			inputArguments = "";
 		}
 

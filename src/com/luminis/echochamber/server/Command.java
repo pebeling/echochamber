@@ -1,45 +1,67 @@
 package com.luminis.echochamber.server;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 abstract class Command {
-	private String commandString, usage, description;
-	private int minArgs, maxArgs;
+	private String commandName, description;
+	private String[][] usages;
 	private boolean greedyLastArgument;
 
 	String getName() {
-		return commandString;
+		return commandName;
 	}
+
 	String getUsage() {
-		return "Usage: /" + commandString + " " + usage;
+		String output = (usages.length > 1) ? "Usages:" : "Usage:";
+		for (String[] usage : usages) {
+			output += "\n";
+			output += "\t/" + commandName + " ";
+			for (String s : usage) {
+				output += "<" + s + "> ";
+			}
+		}
+		return output;
 	}
+
 	String getDescription() {
 		return description;
 	}
 	abstract void execute(String arguments) throws Exception;
 
-	Command(String commandString, String usage, String description, int minArgs, int maxArgs, boolean greedyLastArgument) {
-		this.commandString = commandString;
-		this.usage = usage;
+	Command(String commandName, String description, String[][] usages, boolean greedyLastArgument) {
+		this.commandName = commandName;
 		this.description = description;
-		this.minArgs = minArgs;
-		this.maxArgs = maxArgs;
+		this.usages = usages;
 		this.greedyLastArgument = greedyLastArgument;
 	}
 
-	List<String> argumentStringParser(String arguments) throws Exception {
-		String[] argumentList;
-		if (this.greedyLastArgument) { // signifies that the last argument contains the rest of the input un-split.
-			argumentList = arguments.split("\\s+", this.minArgs);
-		} else {
-			argumentList = arguments.split("\\s+");
-		}
-		if (argumentList.length == 1 && argumentList[0].equals("")) argumentList = new String[]{}; // this because split of "" results in [""]
-		if (argumentList.length > this.maxArgs) throw new Exception("Too many arguments");
-		if (argumentList.length < this.minArgs) throw new Exception("Too few arguments");
+	Map<String, String> argumentStringParser(String arguments) throws Exception {
+		List< Map<String, String> > argumentMapList = new ArrayList<>();
 
-		return Arrays.asList(argumentList);
+		// try to match the string to the entries in usages
+		for (String[] usage : usages) {
+			Map<String, String> map = new HashMap<>();
+
+			int l = usage.length;
+
+			String[] asplit = arguments.split("\\s", greedyLastArgument ? l : 0);
+			if (asplit.length == 1 && asplit[0].equals("")) { asplit = new String[]{}; } // this needed because split of "" results in [""] instead of []
+
+			if (l == 0 && asplit.length == 0) {
+				argumentMapList.add(map);
+			} else if (l > 0) {
+				if ( asplit.length == l ) {
+					for (int i = 0; i < l; i++) {
+						map.put(usage[i], asplit[i]);
+					}
+					argumentMapList.add(map);
+				}
+			}
+		}
+		if (argumentMapList.isEmpty()) {throw new Exception("Wrong number of arguments");}
+		if (argumentMapList.size() > 1 ) {throw new Exception("Ambiguous arguments");} // indicates an error in usages array for this command
+
+		return argumentMapList.get(0);
 	}
 }
 
@@ -47,7 +69,15 @@ class helpCommand extends Command {
 	private Session receiver;
 
 	helpCommand (Session receiver) {
-		super("help", "[<command>]", "Either lists all available commands or gives info on a specific command", 0, 1, false);
+		super(
+				"help",
+				"Either lists all available commands or gives info on a specific command.",
+				new String[][]{
+						{ },
+						{ "command name" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -60,7 +90,14 @@ class setnameCommand extends Command {
 	private Session receiver;
 
 	setnameCommand(Session receiver) {
-		super("setname", "<name>", "Sets a nickname and connects to the default channel as a temporary account", 1, 1, false);
+		super(
+				"setname",
+				"Sets a username and connects to the default channel as a temporary account.",
+				new String[][]{
+						{ "username" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -73,7 +110,14 @@ class setpwdCommand extends Command {
 	private Session receiver;
 
 	setpwdCommand (Session receiver) {
-		super("setpwd", "<password>", "creates new account", 1, 1, false);
+		super(
+				"setpwd",
+				"creates new account.",
+				new String[][]{
+						{ "password" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -84,9 +128,16 @@ class setpwdCommand extends Command {
 
 class loginCommand extends Command {
 	private Session receiver;
-
+	
 	loginCommand (Session receiver) {
-		super("login", "<name> <password>", "Log in to your account", 2, 2, false);
+		super(
+				"login", 
+				"Log in to your account.",
+				new String[][]{
+						{ "username", "password" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -99,7 +150,14 @@ class logoutCommand extends Command {
 	private Session receiver;
 
 	logoutCommand (Session receiver) {
-		super("logout", "", "Logs out", 0, 0, false);
+		super(
+				"logout", 
+				"Logs out.",
+				new String[][]{
+						{ }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -108,11 +166,18 @@ class logoutCommand extends Command {
 	}
 }
 
-class accountsCommand extends Command {
+class accountsCommand extends Command { // TODO: should be admin command only
 	private Session receiver;
 
 	accountsCommand (Session receiver) {
-		super("accounts", "", "Lists all accounts", 0, 0, false);
+		super(
+				"accounts", 
+				"Lists all accounts.",
+				new String[][]{
+						{ }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -124,8 +189,15 @@ class accountsCommand extends Command {
 class sessionsCommand extends Command {
 	private Session receiver;
 
-	sessionsCommand (Session receiver) {
-		super("sessions", "", "Lists all sessions", 0, 0, false);
+	sessionsCommand (Session receiver) { // TODO: should be admin command only
+		super(
+				"sessions", 
+				"Lists all sessions.",
+				new String[][]{
+						{ }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -138,7 +210,14 @@ class exitCommand extends Command {
 	private Session receiver;
 
 	exitCommand (Session receiver) {
-		super("exit", "", "Ends the current session", 0, 0, false);
+		super(
+				"exit", 
+				"Ends the current session.",
+				new String[][]{
+						{ }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -151,7 +230,15 @@ class usersCommand extends Command {
 	private Session receiver;
 
 	usersCommand (Session receiver) {
-		super("users", "[<channel>]", "Lists online users", 0, 1, false);
+		super(
+				"users",
+				"Lists online users.",
+				new String[][]{
+						{ },
+						{ "channel" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -164,7 +251,14 @@ class whisperCommand extends Command {
 	private Session receiver;
 
 	whisperCommand (Session receiver) {
-		super("whisper", "<user> <message>", "Sends a message to a specific user", 2, 2, true);
+		super(
+				"whisper",
+				"Sends a message to a specific user.",
+				new String[][]{
+						{ "username", "message" }
+				},
+				true
+		);
 		this.receiver = receiver;
 	}
 
@@ -176,8 +270,16 @@ class whisperCommand extends Command {
 class shoutCommand extends Command {
 	private Session receiver;
 
-	shoutCommand (Session receiver) {
-		super("shout", "<message>", "Sends a message to all in the channel (default)", 1, 1, true);
+	shoutCommand (Session receiver) { // TODO: should be "all on server" once multiple channel are possible. Command "talk" to speak to all in channel
+		super(
+				"shout",
+				"Sends a message to all in the channel (default).",
+				new String[][]{
+						{ },
+						{ "message" }
+				},
+				true
+		);
 		this.receiver = receiver;
 	}
 
@@ -190,7 +292,15 @@ class deleteCommand extends Command {
 	private Session receiver;
 
 	deleteCommand (Session receiver) {
-		super("delete", "", "Deletes your account", 0, 1, false);
+		super(
+				"delete",
+				"Deletes your account.",
+				new String[][]{
+						{ },
+						{ "password" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -203,7 +313,14 @@ class cancelCommand extends Command {
 	private Session receiver;
 
 	cancelCommand (Session receiver) {
-		super("cancel", "", "Cancels delete", 0, 0, false);
+		super(
+				"cancel", 
+				"Cancels delete.",
+				new String[][]{
+						{ }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -216,7 +333,14 @@ class friendsCommand extends Command {
 	private Session receiver;
 
 	friendsCommand (Session receiver) {
-		super("friends", "", "List friends and friend request statuses", 0, 0, false);
+		super(
+				"friends", 
+				"List all friends and friend request statuses.",
+				new String[][]{
+						{ }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -229,7 +353,14 @@ class befriendCommand extends Command {
 	private Session receiver;
 
 	befriendCommand (Session receiver) {
-		super("befriend", "<user>", "Sends someone a friend request", 1, 1, false);
+		super(
+				"befriend", 
+				"Sends someone a friend request.",
+				new String[][]{
+						{ "username" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -242,7 +373,14 @@ class unfriendCommand extends Command {
 	private Session receiver;
 
 	unfriendCommand (Session receiver) {
-		super("unfriend", "<user>", "Removes someone from your friend list", 1, 1, false);
+		super(
+				"unfriend", 
+				"Removes someone from your friend list.",
+				new String[][]{
+						{ "username" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -255,7 +393,14 @@ class acceptCommand extends Command {
 	private Session receiver;
 
 	acceptCommand (Session receiver) {
-		super("accept", "<user>", "Accept a friend request", 1, 1, false);
+		super(
+				"accept", 
+				"Accept a friend request.",
+				new String[][]{
+						{ "username" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -268,7 +413,14 @@ class refuseCommand extends Command {
 	private Session receiver;
 
 	refuseCommand (Session receiver) {
-		super("refuse", "<user>", "Refuse a friend request", 1, 1, false);
+		super(
+				"refuse", 
+				"Refuse a friend request.",
+				new String[][]{
+						{ "username" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -281,7 +433,14 @@ class forgetCommand extends Command {
 	private Session receiver;
 
 	forgetCommand (Session receiver) {
-		super("forget", "<user>", "Forgets a sent friend request", 1, 1, false);
+		super(
+				"forget", 
+				"Forgets a sent friend request.",
+				new String[][]{
+						{ "username" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
@@ -294,7 +453,15 @@ class noCommand extends Command {
 	private Session receiver;
 
 	noCommand (Session receiver) {
-		super("", "", "", 0, 0, false);
+		super(
+				"no",
+				"",
+				new String[][]{
+					{ },
+					{ "arguments" }
+				},
+				true
+		);
 		this.receiver = receiver;
 	}
 
@@ -307,7 +474,15 @@ class invalidCommand extends Command {
 	private Session receiver;
 
 	invalidCommand (Session receiver) {
-		super("", "", "", 1, 1, false);
+		super(
+				"invalid",
+				"",
+				new String[][]{
+						{ },
+						{ "command" }
+				},
+				false
+		);
 		this.receiver = receiver;
 	}
 
