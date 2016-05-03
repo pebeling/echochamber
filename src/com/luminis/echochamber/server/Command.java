@@ -3,18 +3,21 @@ package com.luminis.echochamber.server;
 import java.util.Arrays;
 import java.util.List;
 
+abstract class Command {
+	private String commandString, usage, description;
+	private int minArgs, maxArgs;
+	private boolean greedyLastArgument;
+
 //	static String[] commandMasterList = {
-//			"help", "setname", "setpwd", "login", "logout", "accounts", "sessions", "exit",
-//			"users", "whisper", "shout", "delete", "cancel", "friends", "befriend", "unfriend",
-//			"accept", "refuse", "forget"
+//		"help", "setname", "setpwd", "login", "logout", "accounts", "sessions", "exit",
+//		"users", "whisper", "shout", "delete", "cancel", "friends", "befriend", "unfriend",
+//		"accept", "refuse", "forget", "nop", "invalid"
 //	};
 
-abstract class Command {
-	String commandString, usage, description;
-	int minArgs, maxArgs;
-	boolean greedyLastArgument;
-
-	String getUsage () {
+	String getName() {
+		return commandString;
+	}
+	String getUsage() {
 		return "Usage: /" + commandString + " " + usage;
 	}
 	String getDescription() {
@@ -39,8 +42,8 @@ abstract class Command {
 			argumentList = arguments.split("\\s+");
 		}
 		if (argumentList.length == 1 && argumentList[0].equals("")) argumentList = new String[]{}; // this because split of "" results in [""]
-		if (argumentList.length > this.maxArgs) throw new Exception();
-		if (argumentList.length < this.minArgs) throw new Exception();
+		if (argumentList.length > this.maxArgs) throw new Exception("Too many arguments");
+		if (argumentList.length < this.minArgs) throw new Exception("Too few arguments");
 
 		return Arrays.asList(argumentList);
 	}

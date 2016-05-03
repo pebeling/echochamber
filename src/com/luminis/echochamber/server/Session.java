@@ -30,15 +30,15 @@ enum SessionState {
 }
 
 class Session extends Thread {
-	Server server;
-	Channel connectedChannel;
-	Account connectedAccount;
+	private Server server;
 	private Socket socket = null;
 	private PrintWriter toClient;
 	private BufferedReader fromClient;
 	private UUID id;
 	private InputParser parser = new InputParser();
 	private SessionState state;
+	Channel connectedChannel;
+	Account connectedAccount;
 
 	Session(Socket socket, Server server) {
 		super("Session");
@@ -69,19 +69,21 @@ class Session extends Thread {
 				inputLine = fromClient.readLine();
 				if (inputLine == null) {
 					Server.logger.info("Client in session at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has disconnected from server");
-					messageClient("Disconnected by client");
 					state = EXIT;
 				} else {
 					parser.evaluateInput(inputLine);
-					try {
-						parser.command.execute(parser.arguments);
-					} catch (Exception e) {
-						messageClient("Invalid arguments");
+					if (state.isValid(parser.command.getName()) || parser.command.getName().equals("") ) {
+						try {
+							parser.command.execute(parser.arguments);
+						} catch (Exception e) {
+							messageClient("Invalid arguments for command " + parser.command.getName() + ": " + e.getMessage());
+						}
+					} else {
+						messageClient("Command not available in this context");
 					}
 				}
 			}
 			Server.logger.info("Server has closed the connection to client");
-			messageClient("Disconnected by server");
 
 			if (connectedChannel != null) disconnectFromChannel();
 			if (connectedAccount != null) unSetAccount();
@@ -104,7 +106,7 @@ class Session extends Thread {
 //				Constructor commandConstructor = cls.getDeclaredConstructor(Session.class);
 //				commandConstructor.setAccessible(true);
 //				Command command = (Command)commandConstructor.newInstance(this);
-//				protocol2.addCommand(c, command);
+//				parser.addCommand(c, command);
 //			} catch (Throwable e) {
 //				System.err.println(e); // command class not implemented
 //			}
@@ -137,7 +139,7 @@ class Session extends Thread {
 		return id.toString();
 	}
 
-	void connectToChannel(Channel channel) {
+	private void connectToChannel(Channel channel) {
 		if (this.connectedChannel == null) {
 			this.connectedChannel = channel;
 			channel.subscribe(this);
@@ -146,7 +148,7 @@ class Session extends Thread {
 		else Server.logger.warn("Session already bound to channel " + this.connectedChannel);
 	}
 
-	void disconnectFromChannel() {
+	private void disconnectFromChannel() {
 		if (connectedChannel != null) {
 			Server.logger.info("Session unbound from channel " + connectedChannel);
 			connectedChannel.unSubscribe(this);
@@ -155,19 +157,25 @@ class Session extends Thread {
 		else Server.logger.warn("Session not bound to a channel");
 	}
 
-	void broadcastToChannel(String argument) {
+	private void broadcastToChannel(String argument) {
 		connectedChannel.shout(argument, this);
 	}
 
-	ArrayList<Session> sessionsInSameChannel() {
-		return connectedChannel.getConnectedSessions();
+	private ArrayList<Session> sessionsInSameChannel() {
+		if (connectedChannel == null) {
+			Server.logger.warn("Session " + this + " not connected to a channel");
+			return new ArrayList<>();
+		}
+		else {
+			return connectedChannel.getConnectedSessions();
+		}
 	}
 
 //	ArrayList<Session> sessionsInChannel(Channel connectedChannel) {
 //		return connectedChannel.connectedSessions;
 //	}
 
-	void setAccount(Account account) {
+	private void setAccount(Account account) {
 		if (this.connectedAccount == null) {
 			this.connectedAccount = account;
 			account.login(this);
@@ -176,7 +184,7 @@ class Session extends Thread {
 		else Server.logger.warn("Session already bound to account " + account);
 	}
 
-	void unSetAccount() {
+	private void unSetAccount() {
 		if (this.connectedAccount != null) {
 			Server.logger.info("Session unbound from account " + connectedAccount);
 			this.connectedAccount.logout();
@@ -274,6 +282,7 @@ class Session extends Thread {
 	}
 
 	void exitCommandImp(List<String> arguments) {
+		messageClient("Disconnected by server");
 		state = EXIT;
 	}
 
@@ -411,6 +420,9 @@ class Session extends Thread {
 	}
 
 	void noCommandImp(List<String> arguments) {
+		if (state == ENTRANCE) {
+			helpCommandImp(arguments);
+		}
 	}
 	
 	void invalidCommandImp(List<String> arguments) {

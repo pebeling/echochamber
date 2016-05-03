@@ -6,6 +6,8 @@ import com.cedarsoftware.util.io.JsonWriter;
 import com.sun.deploy.util.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configurator;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -96,11 +98,9 @@ class Server {
 		try {
 			List<String> text = Files.readAllLines(Paths.get("accounts.json"), StandardCharsets.UTF_8);
 			accounts = (ArrayList<Account>) JsonReader.jsonToJava(StringUtils.join(text, ""));
-		}
-		catch(IOException ex){
+		} catch (IOException ex) {
 			System.out.println("Can't read from file '" + filename + "'.");
-		}
-		catch(JsonIoException ex) {
+		} catch (JsonIoException ex) {
 			System.out.println("Can't read from file '" + filename + "': Account format doesn't match.");
 		}
 		if (accounts == null) accounts = new ArrayList<>();
@@ -126,8 +126,7 @@ class Server {
 					toClient.close();
 					socket.close();
 					Server.logger.warn("Maximum number of simultaneous connections reached");
-				}
-				else {
+				} else {
 					new Session(socket, this).start();
 				}
 			}
@@ -159,7 +158,7 @@ class Server {
 
 	synchronized void addAccount(Account account) throws Exception {
 		Account accountExists = getAccountByName(account.getName());
-		if ( accountExists == null) {
+		if (accountExists == null) {
 			accounts.add(account);
 		} else {
 			logger.warn("Can't add account " + account + " to server because another account with the same username exists: " + accountExists);
@@ -180,24 +179,23 @@ class Server {
 		Server.logger.info("Shutting down...");
 		Server.logger.info("Saving accounts...");
 		try (
-			PrintWriter out = new PrintWriter("accounts.json")
+				PrintWriter out = new PrintWriter("accounts.json")
 		) {
 			out.print(JsonWriter.formatJson(JsonWriter.objectToJson(accounts)));
 			out.close();
 			Server.logger.info("Accounts saved successfully");
-		}
-		catch(IOException ex){
+		} catch (IOException ex) {
 			Server.logger.error("Cannot write file");
 		}
 		Server.logger.info("Server stopped");
-		//LogManager.shutdown(); // TODO fix manual shutdown of logging
+		//shutdown log4j2
+		if( LogManager.getContext() instanceof LoggerContext ) {
+			logger.info("Shutting down log4j2");
+			Configurator.shutdown((LoggerContext)LogManager.getContext());
+		} else
+			logger.warn("Unable to shutdown log4j2");
 	}
-
-	synchronized void exit() {
-		Server.logger.info("Logging everyone out");
-		sessions.forEach(Session::exit);
-		running = false;
-	}
+}
 
 //	Channel getChannelByName(String channelname) {
 //		for (Channel channel : channels) {
@@ -207,4 +205,4 @@ class Server {
 //		}
 //		return null;
 //	}
-}
+
