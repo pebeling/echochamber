@@ -354,8 +354,8 @@ class befriendCommand extends Command {
 
 	befriendCommand (Session receiver) {
 		super(
-				"befriend", 
-				"Sends someone a friend request.",
+				"befriend",
+				"Sends someone a friend request or accepts a request.",
 				new String[][]{
 						{ "username" }
 				},
@@ -375,7 +375,7 @@ class unfriendCommand extends Command {
 	unfriendCommand (Session receiver) {
 		super(
 				"unfriend", 
-				"Removes someone from your friend list.",
+				"Removes someone from your friend list or cancels a friend request.",
 				new String[][]{
 						{ "username" }
 				},
@@ -386,66 +386,6 @@ class unfriendCommand extends Command {
 
 	public void execute(String arguments) throws Exception {
 		receiver.unfriendCommandImp(argumentStringParser(arguments));
-	}
-}
-
-class acceptCommand extends Command {
-	private Session receiver;
-
-	acceptCommand (Session receiver) {
-		super(
-				"accept", 
-				"Accept a friend request.",
-				new String[][]{
-						{ "username" }
-				},
-				false
-		);
-		this.receiver = receiver;
-	}
-
-	public void execute(String arguments) throws Exception {
-		receiver.acceptCommandImp(argumentStringParser(arguments));
-	}
-}
-
-class refuseCommand extends Command {
-	private Session receiver;
-
-	refuseCommand (Session receiver) {
-		super(
-				"refuse", 
-				"Refuse a friend request.",
-				new String[][]{
-						{ "username" }
-				},
-				false
-		);
-		this.receiver = receiver;
-	}
-
-	public void execute(String arguments) throws Exception {
-		receiver.refuseCommandImp(argumentStringParser(arguments));
-	}
-}
-
-class forgetCommand extends Command {
-	private Session receiver;
-
-	forgetCommand (Session receiver) {
-		super(
-				"forget", 
-				"Forgets a sent friend request.",
-				new String[][]{
-						{ "username" }
-				},
-				false
-		);
-		this.receiver = receiver;
-	}
-
-	public void execute(String arguments) throws Exception {
-		receiver.forgetCommandImp(argumentStringParser(arguments));
 	}
 }
 

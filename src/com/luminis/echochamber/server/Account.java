@@ -1,9 +1,7 @@
 package com.luminis.echochamber.server;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.UUID;
 
 class Account implements Serializable {
@@ -18,10 +16,7 @@ class Account implements Serializable {
 	private boolean permanent;
 	transient private boolean online;
 	Date lastLoginDate;
-
-	ArrayList<Account> friends = null;
-	ArrayList<Account> pendingSentFriendRequests = null;
-	ArrayList<Account> pendingReceivedFriendRequests = null;
+	Relations relations;
 
 	Account(String username, byte[] pwd) {
 		if (pwd != null) {
@@ -29,10 +24,7 @@ class Account implements Serializable {
 			salt = Security.byteArrayToHexString(byteSalt);
 			passwordHash = Security.byteArrayToHexString(Security.calculateHash(Security.saltPassword(byteSalt, pwd)));
 			permanent = true;
-
-			friends = new ArrayList<>();
-			pendingSentFriendRequests = new ArrayList<>();
-			pendingReceivedFriendRequests = new ArrayList<>();
+			relations = new Relations(this);
 		} else {
 			salt = null;
 			passwordHash = null;
@@ -68,35 +60,10 @@ class Account implements Serializable {
 		username = null;
 		salt = null;
 		passwordHash = null;
-
-		if (permanent) {
-			// can't use friends.forEach((friend) -> unfriend(friend)); because of ConcurrentModificationException
-			Iterator<Account> friendIterator = friends.iterator();
-			while (friendIterator.hasNext()) {
-				Account friend = friendIterator.next();
-				friendIterator.remove();
-				friend.friends.remove(this);
-			}
-			friendIterator = pendingSentFriendRequests.iterator();
-			while (friendIterator.hasNext()) {
-				Account friend = friendIterator.next();
-				friendIterator.remove();
-				friend.pendingReceivedFriendRequests.remove(this);
-			}
-			friendIterator = pendingReceivedFriendRequests.iterator();
-			while (friendIterator.hasNext()) {
-				Account friend = friendIterator.next();
-				friendIterator.remove();
-				friend.pendingSentFriendRequests.remove(this);
-			}
-
-			friends = null;
-			pendingSentFriendRequests = null;
-			pendingReceivedFriendRequests = null;
-		}
+		if (permanent) relations.clear();
 	}
 
-	String getName() {
+	String username() {
 		return username;
 	}
 
@@ -124,42 +91,15 @@ class Account implements Serializable {
 		return passwordMatch;
 	}
 
-	synchronized void sendFriendRequest(Account account) {
-		if (!friends.contains(account) && account != this && account.permanent && this.permanent) {
-			pendingSentFriendRequests.add(account);
-			account.pendingReceivedFriendRequests.add(this);
+	synchronized void addRelation(Account account) {
+		if (account.permanent && this.permanent) {
+			relations.add(account);
 		}
 	}
 
-	synchronized void cancelFriendRequest(Account account) {
+	synchronized void removeRelation(Account account) {
 		if (account.permanent && this.permanent) {
-			pendingSentFriendRequests.remove(account);
-			account.pendingReceivedFriendRequests.remove(this);
-		}
-	}
-
-	synchronized void acceptFriendRequest(Account account) {
-		if (account.permanent && this.permanent) {
-			boolean pendingHere = pendingReceivedFriendRequests.remove(account);
-			boolean pendingThere = account.pendingSentFriendRequests.remove(this);
-			if (pendingHere && pendingThere) {
-				friends.add(account);
-				account.friends.add(this);
-			}
-		}
-	}
-
-	synchronized void refuseFriendRequest(Account account) {
-		if (account.permanent && this.permanent) {
-			pendingReceivedFriendRequests.remove(account);
-			account.pendingSentFriendRequests.remove(this);
-		}
-	}
-
-	synchronized void unfriend(Account account) {
-		if (account.permanent && this.permanent) {
-			friends.remove(account);
-			account.friends.remove(this);
+			relations.remove(account);
 		}
 	}
 
@@ -169,11 +109,9 @@ class Account implements Serializable {
 			salt = Security.byteArrayToHexString(byteSalt);
 			passwordHash = Security.byteArrayToHexString(Security.calculateHash(Security.saltPassword(byteSalt, pwd)));
 			permanent = true;
+			relations = new Relations(this);
 
-			friends = new ArrayList<>();
-			pendingSentFriendRequests = new ArrayList<>();
-			pendingReceivedFriendRequests = new ArrayList<>();
-			Server.logger.info("Changed transient acount " + this + " to permanent");
+			Server.logger.info("Changed transient account " + this + " to permanent");
 		}
 		else Server.logger.warn("Account " + this + " is already a permanent account");
 	}
@@ -187,7 +125,7 @@ class Account implements Serializable {
 	}
 
 	String infoString() {
-		return "Name: " + this.getName() + ", Type: " + (permanent ? "Permanent" : "Transient") + ", Status: "
+		return "Name: " + this.username() + ", Type: " + (permanent ? "Permanent" : "Transient") + ", Status: "
 				+ (online ? "Online" : "Offline") + ", Current channel: " + (currentSession == null ? "none" : currentSession.connectedChannel);
 	}
 }

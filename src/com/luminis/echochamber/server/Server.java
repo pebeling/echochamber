@@ -84,7 +84,7 @@ class Server {
 
 	synchronized Account getAccountByName(String username) {
 		for (Account account : accounts) {
-			if (account.getName().equals(username)) {
+			if (account.username().equals(username)) {
 				return account;
 			}
 		}
@@ -102,7 +102,7 @@ class Server {
 	}
 
 	synchronized void addAccount(Account account) throws Exception {
-		Account accountExists = getAccountByName(account.getName());
+		Account accountExists = getAccountByName(account.username());
 		if (accountExists == null) {
 			accounts.add(account);
 		} else {

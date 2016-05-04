@@ -1,7 +1,5 @@
 package com.luminis.echochamber.server;
 
-import com.cedarsoftware.util.io.JsonWriter;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -104,24 +102,6 @@ class Session extends Thread {
 	}
 
 	private void registerCommands() {
-//		String[] commandList = {
-//			"help", "setname", "setpwd", "login", "logout", "accounts", "sessions", "exit",
-//			"users", "whisper", "shout", "delete", "cancel", "friends", "befriend", "unfriend",
-//			"accept", "refuse", "forget", "no", "invalid"
-//		};
-//
-//		for (String c : commandList) {
-//			String classname = "com.luminis.echochamber.server." + c + "Command";
-//			try {
-//				Class cls = Class.forName(classname);
-//				Constructor commandConstructor = cls.getDeclaredConstructor(Session.class);
-//				commandConstructor.setAccessible(true);
-//				Command command = (Command)commandConstructor.newInstance(this);
-//				parser.addCommand(command);
-//			} catch (Throwable e) {
-//				Server.logger.warn("Command " + c + " (" + classname + ") not implemented"); // command class not implemented
-//			}
-//		}
 		parser.addCommand(new helpCommand		(this));
 		parser.addCommand(new setnameCommand	(this));
 		parser.addCommand(new setpwdCommand		(this));
@@ -138,9 +118,6 @@ class Session extends Thread {
 		parser.addCommand(new friendsCommand	(this));
 		parser.addCommand(new befriendCommand	(this));
 		parser.addCommand(new unfriendCommand	(this));
-		parser.addCommand(new acceptCommand		(this));
-		parser.addCommand(new refuseCommand		(this));
-		parser.addCommand(new forgetCommand		(this));
 		parser.addCommand(new noCommand			(this));
 		parser.addCommand(new invalidCommand	(this));
 	}
@@ -181,10 +158,6 @@ class Session extends Thread {
 			return connectedChannel.getConnectedSessions();
 		}
 	}
-
-//	ArrayList<Session> sessionsInChannel(Channel connectedChannel) {
-//		return connectedChannel.connectedSessions;
-//	}
 
 	private void setAccount(Account account) {
 		if (this.connectedAccount == null) {
@@ -304,7 +277,7 @@ class Session extends Thread {
 				if (!list.equals("")) {
 					list += "\n";
 				}
-				list += session.connectedAccount.getName() + " (" + (session.connectedAccount.isPermanent() ? "permanent" : "transient") +")";
+				list += session.connectedAccount.username() + " (" + (session.connectedAccount.isPermanent() ? "permanent" : "transient") +")";
 			}
 			messageClient(list);
 		} else messageClient("??"); // TODO: implement once users can create channels
@@ -315,10 +288,10 @@ class Session extends Thread {
 		if (account == null){
 			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (account.isOnline()) {
-			account.currentSession.messageClient(connectedAccount.getName() + " whispers: " + arguments.get("message"));
-			messageClient("You whispered a message to " + account.getName());
+			account.currentSession.messageClient(connectedAccount.username() + " whispers: " + arguments.get("message"));
+			messageClient("You whispered a message to " + account.username());
 		} else {
-			messageClient("User " + account.getName() + " is not online");
+			messageClient("User " + account.username() + " is not online");
 		}
 	}
 
@@ -354,20 +327,7 @@ class Session extends Thread {
 	}
 
 	void friendsCommandImp(Map<String, String> arguments) {
-		String friendStatus = "";
-		friendStatus += "Current friends:\n";
-		for (Account friend : connectedAccount.friends) {
-			friendStatus += "\t" + friend.getName() + " " + (friend.isOnline() ? friend.currentSession.connectedChannel : "[OFFLINE]") + " \n";
-		}
-		friendStatus += "Pending sent friend requests: \n";
-		for (Account friend : connectedAccount.pendingSentFriendRequests) {
-			friendStatus += "\t" + friend.getName() + "\n";
-		}
-		friendStatus += "Pending received friend requests: \n";
-		for (Account friend : connectedAccount.pendingReceivedFriendRequests) {
-			friendStatus += "\t" + friend.getName() + "\n";
-		}
-		messageClient(friendStatus);
+		messageClient(connectedAccount.relations.toString());
 	}
 
 	void befriendCommandImp(Map<String, String> arguments) {
@@ -379,7 +339,7 @@ class Session extends Thread {
 		} else if (account.equals(connectedAccount)) {
 			messageClient("Get a life!");
 		} else {
-			connectedAccount.sendFriendRequest(account);
+			connectedAccount.addRelation(account);
 			messageClient("Friend request sent");
 		}
 	}
@@ -387,48 +347,12 @@ class Session extends Thread {
 	void unfriendCommandImp(Map<String, String> arguments) {
 		Account account = server.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No connectedAccount with username " + arguments.get("username") + " found");
-		} else if (!connectedAccount.friends.contains(account)) {
-			messageClient(account.getName() + "is not in your friend list");
-		} else {
-			connectedAccount.unfriend(account);
-			messageClient("You removed " + account.getName() + " from your friend list");
-		}
-	}
-
-	void acceptCommandImp(Map<String, String> arguments) {
-		Account account  = server.getAccountByName(arguments.get("username"));
-		if (account == null){
 			messageClient("No account with username " + arguments.get("username") + " found");
-		} else if (!connectedAccount.pendingReceivedFriendRequests.contains(account)) {
-			messageClient("No pending friend request from " + account.getName());
+//		} else if (!connectedAccount.friends.contains(account)) {
+//			messageClient(account.username() + "is not in your friend list");
 		} else {
-			connectedAccount.acceptFriendRequest(account);
-			messageClient("You and " + account.getName() + " are now friends");
-		}
-	}
-
-	void refuseCommandImp(Map<String, String> arguments) {
-		Account account = server.getAccountByName(arguments.get("username"));
-		if (account == null){
-			messageClient("No account with username " + arguments.get("username") + " found");
-		} else if (!connectedAccount.pendingReceivedFriendRequests.contains(account)) {
-			messageClient("No pending friend request from " + account.getName());
-		} else {
-			connectedAccount.refuseFriendRequest(account);
-			messageClient("You refused " + account.getName() + "'s friend request");
-		}
-	}
-
-	void forgetCommandImp(Map<String, String> arguments) {
-		Account account = server.getAccountByName(arguments.get("username"));
-		if (account == null){
-			messageClient("No account with username " + arguments.get("username") + " found");
-		} else if (!connectedAccount.pendingSentFriendRequests.contains(account)) {
-			messageClient("No outstanding friend request to " + account.getName());
-		} else {
-			connectedAccount.refuseFriendRequest(account);
-			messageClient("You cancelled friend request to " + account.getName());
+			connectedAccount.removeRelation(account);
+			messageClient("You removed " + account.username() + " from your friend list");
 		}
 	}
 
