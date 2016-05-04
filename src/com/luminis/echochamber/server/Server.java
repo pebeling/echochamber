@@ -24,7 +24,7 @@ class Server {
 	static int maxConnectedClients = 3;
 	private volatile int numberOfConnectedClients = 0;
 	volatile ArrayList<Session> sessions;
-	volatile ArrayList<Account> accounts;
+	volatile AccountCollection accounts;
 	private volatile ArrayList<Channel> channels;
 	static Channel defaultChannel = new Channel("Default");
 	private volatile boolean running;
@@ -32,7 +32,7 @@ class Server {
 	Server(int port) {
 		this.port = port;
 		sessions = new ArrayList<>();
-		accounts = new ArrayList<>();
+		accounts = new AccountCollection();
 		channels = new ArrayList<>();
 		channels.add(defaultChannel);
 		running = true;
@@ -41,14 +41,14 @@ class Server {
 	Server(int port, String filename) {
 		this(port);
 		try {
-			List<String> text = Files.readAllLines(Paths.get("accounts.json"), StandardCharsets.UTF_8);
-			accounts = (ArrayList<Account>) JsonReader.jsonToJava(StringUtils.join(text, ""));
+			List<String> text = Files.readAllLines(Paths.get(filename), StandardCharsets.UTF_8);
+			accounts = (AccountCollection) JsonReader.jsonToJava(StringUtils.join(text, ""));
 		} catch (IOException ex) {
 			System.out.println("Can't read from file '" + filename + "'.");
 		} catch (JsonIoException ex) {
 			System.out.println("Can't read from file '" + filename + "': Account format doesn't match.");
 		}
-		if (accounts == null) accounts = new ArrayList<>();
+		if (accounts == null) accounts = new AccountCollection();
 		Server.logger.info("Successfully imported " + accounts.size() + " accounts");
 	}
 
@@ -82,15 +82,6 @@ class Server {
 		}
 	}
 
-	synchronized Account getAccountByName(String username) {
-		for (Account account : accounts) {
-			if (account.username().equals(username)) {
-				return account;
-			}
-		}
-		return null;
-	}
-
 	synchronized void addSession(Session session) {
 		numberOfConnectedClients++;
 		sessions.add(session);
@@ -99,16 +90,6 @@ class Server {
 	synchronized void removeSession(Session session) {
 		sessions.remove(session);
 		numberOfConnectedClients--;
-	}
-
-	synchronized void addAccount(Account account) throws Exception {
-		Account accountExists = getAccountByName(account.username());
-		if (accountExists == null) {
-			accounts.add(account);
-		} else {
-			logger.warn("Can't add account " + account + " to server because another account with the same username exists: " + accountExists);
-			throw new Exception();
-		}
 	}
 
 	synchronized void removeAccount(Account account) {
@@ -141,13 +122,3 @@ class Server {
 			logger.warn("Unable to shutdown log4j2");
 	}
 }
-
-//	Channel getChannelByName(String channelname) {
-//		for (Channel channel : channels) {
-//			if (channel.name.equals(channelname)) {
-//				return channel;
-//			}
-//		}
-//		return null;
-//	}
-

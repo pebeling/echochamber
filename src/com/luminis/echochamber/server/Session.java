@@ -208,7 +208,7 @@ class Session extends Thread {
 	void setnameCommandImp(Map<String, String> arguments) {
 		Account account = new Account(arguments.get("username")); // Create temporary account
 		try {
-			server.addAccount(account);
+			server.accounts.add(account);
 			setAccount(account);
 		} catch (Exception e) {
 			account.delete();
@@ -225,7 +225,7 @@ class Session extends Thread {
 	}
 
 	void loginCommandImp(Map<String, String> arguments) {
-		Account account = server.getAccountByName(arguments.get("username"));
+		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account != null && account.checkPassword(arguments.get("password").getBytes())) {
 			if (account.isOnline()) {
 				messageClient("Account already logged in");
@@ -251,7 +251,7 @@ class Session extends Thread {
 
 	void accountsCommandImp(Map<String, String> arguments) {
 		String list = "";
-		for (Account a : server.accounts) {
+		for (Account a : server.accounts.getAccounts()) {
 			list += a.infoString() + "\n";
 		}
 		messageClient(list);
@@ -284,7 +284,7 @@ class Session extends Thread {
 	}
 
 	void whisperCommandImp(Map<String, String> arguments) {
-		Account account = server.getAccountByName(arguments.get("username"));
+		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account == null){
 			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (account.isOnline()) {
@@ -331,7 +331,7 @@ class Session extends Thread {
 	}
 
 	void befriendCommandImp(Map<String, String> arguments) {
-		Account account = server.getAccountByName(arguments.get("username"));
+		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account == null){
 			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (!account.isPermanent()) {
@@ -345,7 +345,7 @@ class Session extends Thread {
 	}
 
 	void unfriendCommandImp(Map<String, String> arguments) {
-		Account account = server.getAccountByName(arguments.get("username"));
+		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account == null){
 			messageClient("No account with username " + arguments.get("username") + " found");
 //		} else if (!connectedAccount.friends.contains(account)) {

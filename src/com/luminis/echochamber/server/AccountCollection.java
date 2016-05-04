@@ -63,4 +63,8 @@ public class AccountCollection {
 	synchronized public boolean contains(Account account) {
 		return accounts.contains(account);
 	}
+
+	public int size() {
+		return accounts.size();
+	}
 }
