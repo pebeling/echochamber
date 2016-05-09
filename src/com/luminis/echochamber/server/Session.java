@@ -11,7 +11,7 @@ import static com.luminis.echochamber.server.SessionState.*;
 enum SessionState {
 	ENTRANCE	(new String[]{"exit", "help", "setname", "login"}),
 	TRANSIENT	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "setpwd"}),
-	LOGGED_IN	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "befriend", "unfriend", "friends", "delete", "accounts", "sessions"}),
+	LOGGED_IN	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "befriend", "unfriend", "friends", "delete", "accounts"}),
 	DELETE_CONF	(new String[]{"exit", "help", "cancel", "delete"}),
 	EXIT		(new String[]{});
 
@@ -29,20 +29,18 @@ enum SessionState {
 }
 
 class Session {
-	private ConnectionManager connectionManager;
+	private Server server;
 	private PrintWriter toClient;
 	private BufferedReader fromClient;
 	private InputParser parser = new InputParser();
 	private SessionState state;
-	private UUID id;
 	Channel connectedChannel;
 	Account connectedAccount;
 
-	Session(ConnectionManager connectionManager, UUID id, PrintWriter toClient, BufferedReader fromClient) {
+	Session(Server server, PrintWriter toClient, BufferedReader fromClient) {
 		this.toClient = toClient;
 		this.fromClient = fromClient;
-		this.connectionManager = connectionManager;
-		this.id = id;
+		this.server = server;
 		connectedChannel = null;
 		connectedAccount = null;
 		state = ENTRANCE;
@@ -50,7 +48,6 @@ class Session {
 
 	public void run() {
 		registerCommands();
-		messageClient(TextColors.colorServermessage(welcomeMessage()));
 		String inputLine;
 
 		while (!(state == EXIT)) {
@@ -90,7 +87,6 @@ class Session {
 		parser.addCommand(new loginCommand		(this));
 		parser.addCommand(new logoutCommand		(this));
 		parser.addCommand(new accountsCommand	(this));
-		parser.addCommand(new sessionsCommand	(this));
 		parser.addCommand(new exitCommand		(this));
 		parser.addCommand(new usersCommand		(this));
 		parser.addCommand(new whisperCommand	(this));
@@ -102,11 +98,6 @@ class Session {
 		parser.addCommand(new unfriendCommand	(this));
 		parser.addCommand(new noCommand			(this));
 		parser.addCommand(new invalidCommand	(this));
-	}
-
-	@Override
-	public String toString() {
-		return id.toString();
 	}
 
 	private void connectToChannel(Channel channel) {
@@ -142,8 +133,8 @@ class Session {
 	}
 
 	private void setAccount(Account account) {
-		if (this.connectedAccount == null) {
-			this.connectedAccount = account;
+		if (connectedAccount == null) {
+			connectedAccount = account;
 			account.login(this);
 			ConnectionManager.logger.info("Session bound to account " + account);
 		}
@@ -151,11 +142,11 @@ class Session {
 	}
 
 	private void unSetAccount() {
-		if (this.connectedAccount != null) {
+		if (connectedAccount != null) {
 			ConnectionManager.logger.info("Session unbound from account " + connectedAccount);
 			this.connectedAccount.logout();
-			if (!this.connectedAccount.isPermanent()) {
-				this.connectionManager.removeAccount(this.connectedAccount);
+			if (!connectedAccount.isPermanent()) {
+				server.removeAccount(this.connectedAccount);
 			}
 			this.connectedAccount = null;;
 		}
@@ -190,14 +181,14 @@ class Session {
 	void setnameCommandImp(Map<String, String> arguments) {
 		Account account = new Account(arguments.get("username")); // Create temporary account
 		try {
-			connectionManager.accounts.add(account);
+			server.addAccount(account);
 			setAccount(account);
 		} catch (Exception e) {
 			account.delete();
 			messageClient("Unable to create temporary account with nickname: " + arguments.get("username"));
 		}
 		state = TRANSIENT;
-		connectToChannel(ConnectionManager.defaultChannel);
+		connectToChannel(Server.defaultChannel);
 	}
 
 	void setpwdCommandImp(Map<String, String> arguments) {
@@ -207,7 +198,7 @@ class Session {
 	}
 
 	void loginCommandImp(Map<String, String> arguments) {
-		Account account = connectionManager.accounts.getAccountByName(arguments.get("username"));
+		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account != null && account.checkPassword(arguments.get("password").getBytes())) {
 			if (account.isOnline()) {
 				messageClient("Account already logged in");
@@ -215,7 +206,7 @@ class Session {
 			else {
 				String oldLastLoginDate = account.lastLoginDate.toString();
 				setAccount(account);
-				connectToChannel(ConnectionManager.defaultChannel);
+				connectToChannel(Server.defaultChannel);
 				state = LOGGED_IN;
 				messageClient("Login successful. Last login: " + oldLastLoginDate);
 			}
@@ -233,16 +224,8 @@ class Session {
 
 	void accountsCommandImp(Map<String, String> arguments) {
 		String list = "";
-		for (Account a : connectionManager.accounts.getAccounts()) {
+		for (Account a : server.accounts.getAccounts()) {
 			list += a.infoString() + "\n";
-		}
-		messageClient(list);
-	}
-
-	void sessionsCommandImp(Map<String, String> arguments) {
-		String list = "";
-		for (Session s : connectionManager.sessions) {
-			list += s.toString() + "\n";
 		}
 		messageClient(list);
 	}
@@ -266,7 +249,7 @@ class Session {
 	}
 
 	void whisperCommandImp(Map<String, String> arguments) {
-		Account account = connectionManager.accounts.getAccountByName(arguments.get("username"));
+		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account == null){
 			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (account.isOnline()) {
@@ -292,7 +275,7 @@ class Session {
 			if (arguments.size() == 1 && account.checkPassword(arguments.get("password").getBytes())) {
 				disconnectFromChannel();
 				unSetAccount();
-				connectionManager.removeAccount(account);
+				server.removeAccount(account);
 				state = ENTRANCE;
 				messageClient("Account deleted. Returning to Entrance");
 			}
@@ -313,7 +296,7 @@ class Session {
 	}
 
 	void befriendCommandImp(Map<String, String> arguments) {
-		Account account = connectionManager.accounts.getAccountByName(arguments.get("username"));
+		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account == null){
 			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (!account.isPermanent()) {
@@ -327,7 +310,7 @@ class Session {
 	}
 
 	void unfriendCommandImp(Map<String, String> arguments) {
-		Account account = connectionManager.accounts.getAccountByName(arguments.get("username"));
+		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account == null){
 			messageClient("No account with username " + arguments.get("username") + " found");
 //		} else if (!connectedAccount.friends.contains(account)) {
@@ -353,18 +336,5 @@ class Session {
 		} else {
 			messageClient("Invalid command '" + arguments.get("command") + "'");
 		}
-	}
-	
-
-	private String welcomeMessage() {
-		String[] lines = new String[]{
-				"--------------------------------------------------",
-				"Welcome to the EchoChamber chat server!",
-				"Local time is: " + new Date(),
-				"You are client " + connectionManager.numberOfConnectedClients() + " of " + ConnectionManager.maxConnectedClients + ".",
-				"Use /help or /help <command> for more information.",
-				"--------------------------------------------------"
-		};
-		return String.join("\n", lines);
 	}
 }

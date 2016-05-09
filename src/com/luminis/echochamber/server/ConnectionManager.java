@@ -16,36 +16,35 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
 class ConnectionManager {
 	private int port;
-	private volatile ArrayList<Channel> channels = new ArrayList<>();;
-	static final Logger logger = LogManager.getLogger(ConnectionManager.class); // NB: log4j has its own shutdown hook, which we disabled in the config.
-	static int maxConnectedClients = 3;
-	volatile ArrayList<Session> sessions = new ArrayList<>();
-	volatile AccountCollection accounts = new AccountCollection();
-	static Channel defaultChannel = new Channel("Default");
-	private boolean running = true;
+	private Server server;
+	private static int maxConnectedClients = 3;
+	private ArrayList<Session> sessions = new ArrayList<>();
 
-	ConnectionManager(int port) {
+	static final Logger logger = LogManager.getLogger(ConnectionManager.class); // NB: log4j has its own shutdown hook, which we disabled in the config.
+
+	private ConnectionManager(int port, Server server) {
 		this.port = port;
-		channels.add(defaultChannel);
+		this.server = server;
 	}
 
-	ConnectionManager(int port, String filename) {
-		this(port);
+	ConnectionManager(int port, String filename, Server server) {
+		this(port, server);
 		try {
 			List<String> text = Files.readAllLines(Paths.get(filename), StandardCharsets.UTF_8);
-			accounts = (AccountCollection) JsonReader.jsonToJava(StringUtils.join(text, ""));
+			server.accounts = (AccountCollection) JsonReader.jsonToJava(StringUtils.join(text, ""));
 		} catch (IOException ex) {
 			System.out.println("Can't read from file '" + filename + "'.");
 		} catch (JsonIoException ex) {
 			System.out.println("Can't read from file '" + filename + "': Account format doesn't match.");
 		}
-		if (accounts == null) accounts = new AccountCollection();
-		ConnectionManager.logger.info("Successfully imported " + accounts.size() + " accounts");
+		if (server.accounts == null) server.accounts = new AccountCollection();
+		ConnectionManager.logger.info("Successfully imported " + server.accounts.size() + " accounts");
 	}
 
 	void start() {
@@ -58,9 +57,9 @@ class ConnectionManager {
 
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
 			ConnectionManager.logger.info("Server started.");
+			boolean running = true; // TODO: set to false by exit command on server.
 			while (running) {
 				Socket socket = serverSocket.accept();
-				ConnectionManager connectionManager = this;
 				if (!running) break;
 				if (numberOfConnectedClients() + 1 > maxConnectedClients) {
 					PrintWriter toClient = new PrintWriter(socket.getOutputStream(), true);
@@ -79,8 +78,9 @@ class ConnectionManager {
 								BufferedReader fromClient = new BufferedReader(
 										new InputStreamReader(socket.getInputStream())
 								);
+								toClient.println(TextColors.colorServermessage(welcomeMessage()));
 
-								Session session = new Session(connectionManager, id, toClient, fromClient);
+								Session session = new Session(server, toClient, fromClient);
 
 								sessions.add(session);
 								session.run();
@@ -104,12 +104,7 @@ class ConnectionManager {
 		}
 	}
 
-	synchronized void removeAccount(Account account) {
-		accounts.remove(account);
-		account.delete();
-	}
-
-	int numberOfConnectedClients() {
+	private int numberOfConnectedClients() {
 		return sessions.size();
 	}
 
@@ -119,7 +114,7 @@ class ConnectionManager {
 		try (
 				PrintWriter out = new PrintWriter("accounts.json")
 		) {
-			out.print(JsonWriter.formatJson(JsonWriter.objectToJson(accounts)));
+			out.print(JsonWriter.formatJson(JsonWriter.objectToJson(server.accounts)));
 			out.close();
 			ConnectionManager.logger.info("Accounts saved successfully");
 		} catch (IOException ex) {
@@ -132,5 +127,17 @@ class ConnectionManager {
 			Configurator.shutdown((LoggerContext)LogManager.getContext());
 		} else
 			logger.warn("Unable to shutdown log4j2");
+	}
+
+	private String welcomeMessage() {
+		String[] lines = new String[]{
+				"--------------------------------------------------",
+				"Welcome to the EchoChamber chat server!",
+				"Local time is: " + new Date(),
+				"You are client " + numberOfConnectedClients() + " of " + maxConnectedClients + ".",
+				"Use /help or /help <command> for more information.",
+				"--------------------------------------------------"
+		};
+		return String.join("\n", lines);
 	}
 }

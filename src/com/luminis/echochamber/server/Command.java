@@ -186,26 +186,6 @@ class accountsCommand extends Command { // TODO: should be admin command only
 	}
 }
 
-class sessionsCommand extends Command {
-	private Session receiver;
-
-	sessionsCommand (Session receiver) { // TODO: should be admin command only
-		super(
-				"sessions", 
-				"Lists all sessions.",
-				new String[][]{
-						{ }
-				},
-				false
-		);
-		this.receiver = receiver;
-	}
-
-	public void execute(String arguments) throws Exception {
-		receiver.sessionsCommandImp(argumentStringParser(arguments));
-	}
-}
-
 class exitCommand extends Command {
 	private Session receiver;
 
