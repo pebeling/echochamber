@@ -17,25 +17,21 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 class Server {
-	static final Logger logger = LogManager.getLogger(Server.class); // NB: log4j has its own shutdown hook, which we disabled in the config.
 	private int port;
+	private volatile ArrayList<Channel> channels = new ArrayList<>();;
+	static final Logger logger = LogManager.getLogger(Server.class); // NB: log4j has its own shutdown hook, which we disabled in the config.
 	static int maxConnectedClients = 3;
-	private volatile int numberOfConnectedClients = 0;
-	volatile ArrayList<Session> sessions;
-	volatile AccountCollection accounts;
-	private volatile ArrayList<Channel> channels;
+	volatile ArrayList<Session> sessions = new ArrayList<>();
+	volatile AccountCollection accounts = new AccountCollection();
 	static Channel defaultChannel = new Channel("Default");
-	private volatile boolean running;
+	private boolean running = true;
 
 	Server(int port) {
 		this.port = port;
-		sessions = new ArrayList<>();
-		accounts = new AccountCollection();
-		channels = new ArrayList<>();
 		channels.add(defaultChannel);
-		running = true;
 	}
 
 	Server(int port, String filename) {
@@ -64,15 +60,41 @@ class Server {
 			Server.logger.info("Server started.");
 			while (running) {
 				Socket socket = serverSocket.accept();
+				Server server = this;
 				if (!running) break;
-				if (numberOfConnectedClients + 1 > maxConnectedClients) {
+				if (numberOfConnectedClients() + 1 > maxConnectedClients) {
 					PrintWriter toClient = new PrintWriter(socket.getOutputStream(), true);
 					toClient.println("Too many connections. Closing connection");
 					toClient.close();
 					socket.close();
 					Server.logger.warn("Maximum number of simultaneous connections reached");
 				} else {
-					new Session(socket, this).start();
+					UUID id = Security.createUUID();
+					new Thread("Session " + id) {
+						public void run() {
+							try {
+								Server.logger.info("Session started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
+
+								PrintWriter toClient = new PrintWriter(socket.getOutputStream(), true);
+								BufferedReader fromClient = new BufferedReader(
+										new InputStreamReader(socket.getInputStream())
+								);
+
+								Session session = new Session(server, id, toClient, fromClient);
+
+								sessions.add(session);
+								session.run();
+								sessions.remove(session);
+
+								fromClient.close();
+								toClient.close();
+								socket.close();
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+							logger.info("Session terminated");
+						}
+					}.start();
 				}
 			}
 			serverSocket.close();
@@ -82,23 +104,13 @@ class Server {
 		}
 	}
 
-	synchronized void addSession(Session session) {
-		numberOfConnectedClients++;
-		sessions.add(session);
-	}
-
-	synchronized void removeSession(Session session) {
-		sessions.remove(session);
-		numberOfConnectedClients--;
-	}
-
 	synchronized void removeAccount(Account account) {
 		accounts.remove(account);
 		account.delete();
 	}
 
 	int numberOfConnectedClients() {
-		return numberOfConnectedClients;
+		return sessions.size();
 	}
 
 	private void shutdown() {

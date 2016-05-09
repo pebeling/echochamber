@@ -13,7 +13,7 @@ import static com.luminis.echochamber.server.SessionState.*;
 enum SessionState {
 	ENTRANCE	(new String[]{"exit", "help", "setname", "login"}),
 	TRANSIENT	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "setpwd"}),
-	LOGGED_IN	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "befriend", "unfriend", "friends", "accept", "refuse", "forget", "delete", "accounts", "sessions"}),
+	LOGGED_IN	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "befriend", "unfriend", "friends", "delete", "accounts", "sessions"}),
 	DELETE_CONF	(new String[]{"exit", "help", "cancel", "delete"}),
 	EXIT		(new String[]{});
 
@@ -30,46 +30,36 @@ enum SessionState {
 	}
 }
 
-class Session extends Thread {
+class Session {
 	private Server server;
-	private Socket socket = null;
 	private PrintWriter toClient;
 	private BufferedReader fromClient;
-	private UUID id;
 	private InputParser parser = new InputParser();
 	private SessionState state;
+	private UUID id;
 	Channel connectedChannel;
 	Account connectedAccount;
 
-	Session(Socket socket, Server server) {
-		super("Session");
-		this.socket = socket;
+	Session(Server server, UUID id, PrintWriter toClient, BufferedReader fromClient) {
+		this.toClient = toClient;
+		this.fromClient = fromClient;
 		this.server = server;
+		this.id = id;
 		connectedChannel = null;
 		connectedAccount = null;
-		id = Security.createUUID();
-		super.setName("Session " + id);
 		state = ENTRANCE;
 	}
 
 	public void run() {
 		registerCommands();
-		try {
-			server.addSession(this);
-			Server.logger.info("Session started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
-			toClient = new PrintWriter(socket.getOutputStream(), true);
-			fromClient = new BufferedReader(
-					new InputStreamReader(socket.getInputStream())
-			);
+		messageClient(TextColors.colorServermessage(welcomeMessage()));
+		String inputLine;
 
-			messageClient(TextColors.colorServermessage(welcomeMessage()));
-
-			String inputLine;
-
-			while (!(state == EXIT)) {
+		while (!(state == EXIT)) {
+			try {
 				inputLine = fromClient.readLine();
 				if (inputLine == null) {
-					Server.logger.info("Client in session at " + socket.getInetAddress() + ":" + socket.getLocalPort() + " has disconnected from server");
+					Server.logger.info("Client has disconnected from server");
 					state = EXIT;
 				} else {
 					parser.evaluateInput(inputLine);
@@ -85,20 +75,14 @@ class Session extends Thread {
 						messageClient("Command not available in this context");
 					}
 				}
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-			Server.logger.info("Server has closed the connection to client");
-
-			if (connectedChannel != null) disconnectFromChannel();
-			if (connectedAccount != null) unSetAccount();
-			
-			fromClient.close();
-			toClient.close();
-			socket.close();
-			Server.logger.info("Session terminated");
-			server.removeSession(this);
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
+		Server.logger.info("Server has closed the connection to client");
+
+		if (connectedChannel != null) disconnectFromChannel();
+		if (connectedAccount != null) unSetAccount();
 	}
 
 	private void registerCommands() {
