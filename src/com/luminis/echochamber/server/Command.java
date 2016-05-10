@@ -82,7 +82,8 @@ class helpCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.helpCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.helpCommandImp(argumentsMap);
 	}
 }
 
@@ -102,7 +103,8 @@ class setnameCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.setnameCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.setnameCommandImp(argumentsMap);
 	}
 }
 
@@ -122,7 +124,8 @@ class setpwdCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.setpwdCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.setpwdCommandImp(argumentsMap);
 	}
 }
 
@@ -142,7 +145,8 @@ class loginCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.loginCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.loginCommandImp(argumentsMap);
 	}
 }
 
@@ -162,7 +166,8 @@ class logoutCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.logoutCommandImp(argumentStringParser(arguments));
+		argumentStringParser(arguments);
+		receiver.logoutCommandImp();
 	}
 }
 
@@ -182,7 +187,8 @@ class accountsCommand extends Command { // TODO: should be admin command only
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.accountsCommandImp(argumentStringParser(arguments));
+		argumentStringParser(arguments);
+		receiver.accountsCommandImp();
 	}
 }
 
@@ -202,7 +208,8 @@ class exitCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.exitCommandImp(argumentStringParser(arguments));
+		argumentStringParser(arguments);
+		receiver.exitCommandImp();
 	}
 }
 
@@ -223,7 +230,8 @@ class usersCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.usersCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.usersCommandImp(argumentsMap);
 	}
 }
 
@@ -243,7 +251,8 @@ class whisperCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.whisperCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.whisperCommandImp(argumentsMap);
 	}
 }
 
@@ -264,7 +273,8 @@ class shoutCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.shoutCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.shoutCommandImp(argumentsMap);
 	}
 }
 
@@ -285,7 +295,8 @@ class deleteCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.deleteCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.deleteCommandImp(argumentsMap);
 	}
 }
 
@@ -305,7 +316,8 @@ class cancelCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.cancelCommandImp(argumentStringParser(arguments));
+		argumentStringParser(arguments);
+		receiver.cancelCommandImp();
 	}
 }
 
@@ -325,7 +337,8 @@ class friendsCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.friendsCommandImp(argumentStringParser(arguments));
+		argumentStringParser(arguments);
+		receiver.friendsCommandImp();
 	}
 }
 
@@ -345,7 +358,8 @@ class befriendCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.befriendCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.befriendCommandImp(argumentsMap);
 	}
 }
 
@@ -365,7 +379,8 @@ class unfriendCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.unfriendCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.unfriendCommandImp(argumentsMap);
 	}
 }
 
@@ -386,7 +401,8 @@ class noCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.noCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.noCommandImp(argumentsMap);
 	}
 }
 
@@ -407,6 +423,7 @@ class invalidCommand extends Command {
 	}
 
 	public void execute(String arguments) throws Exception {
-		receiver.invalidCommandImp(argumentStringParser(arguments));
+		Map<String, String> argumentsMap = argumentStringParser(arguments);
+		receiver.invalidCommandImp(argumentsMap);
 	}
 }

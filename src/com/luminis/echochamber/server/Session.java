@@ -1,9 +1,4 @@
 package com.luminis.echochamber.server;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.PrintWriter;
-//import java.lang.reflect.Constructor;
 import java.util.*;
 
 import static com.luminis.echochamber.server.SessionState.*;
@@ -30,54 +25,39 @@ enum SessionState {
 
 class Session {
 	private Server server;
-	private PrintWriter toClient;
-	private BufferedReader fromClient;
 	private InputParser parser = new InputParser();
 	private SessionState state;
-	Channel connectedChannel;
-	Account connectedAccount;
+	Channel connectedChannel = null;
+	Account connectedAccount = null;
+	String output; // TODO temporary until interaction with Server class  updated
 
-	Session(Server server, PrintWriter toClient, BufferedReader fromClient) {
-		this.toClient = toClient;
-		this.fromClient = fromClient;
+	Session(Server server) {
 		this.server = server;
-		connectedChannel = null;
-		connectedAccount = null;
+		this.server.add(this);
+		registerCommands();
 		state = ENTRANCE;
 	}
 
-	public void run() {
-		registerCommands();
-		String inputLine;
-
-		while (!(state == EXIT)) {
+	public void receive(String input) {
+		output = "";
+		parser.evaluateInput(input);
+		if (parser.command == null) {
+			Main.logger.error("Null command received");
+		} else if (state.isValid(parser.command.getName()) || parser.command.getName().equals("no") || parser.command.getName().equals("invalid")) {
 			try {
-				inputLine = fromClient.readLine();
-				if (inputLine == null) {
-					ConnectionManager.logger.info("Client has disconnected from server");
-					state = EXIT;
-				} else {
-					parser.evaluateInput(inputLine);
-					if (parser.command == null) {
-						ConnectionManager.logger.error("Null command received");
-					} else if (state.isValid(parser.command.getName()) || parser.command.getName().equals("no") || parser.command.getName().equals("invalid")) {
-						try {
-							parser.command.execute(parser.arguments);
-						} catch (Exception e) {
-							messageClient(e.getMessage() + " for command '" + parser.command.getName() + "'. " + parser.command.getUsage());
-						}
-					} else {
-						messageClient("Command not available in this context");
-					}
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
+				parser.command.execute(parser.arguments);
+			} catch (Exception e) {
+				messageClient(e.getMessage() + " for command '" + parser.command.getName() + "'. " + parser.command.getUsage());
 			}
+		} else {
+			messageClient("Command not available in this context");
 		}
-		ConnectionManager.logger.info("Server has closed the connection to client");
+	}
 
-		if (connectedChannel != null) disconnectFromChannel();
-		if (connectedAccount != null) unSetAccount();
+	public void end() {
+		disconnectFromChannel();
+		unSetAccount();
+		server.remove(this);
 	}
 
 	private void registerCommands() {
@@ -104,18 +84,18 @@ class Session {
 		if (this.connectedChannel == null) {
 			this.connectedChannel = channel;
 			channel.subscribe(this);
-			ConnectionManager.logger.info("Session bound to channel " + channel);
+			Main.logger.info("Session bound to channel " + channel);
 		}
-		else ConnectionManager.logger.warn("Session already bound to channel " + this.connectedChannel);
+		else Main.logger.warn("Session already bound to channel " + this.connectedChannel);
 	}
 
 	private void disconnectFromChannel() {
 		if (connectedChannel != null) {
-			ConnectionManager.logger.info("Session unbound from channel " + connectedChannel);
+			Main.logger.info("Session unbound from channel " + connectedChannel);
 			connectedChannel.unSubscribe(this);
 			connectedChannel = null;
 		}
-		else ConnectionManager.logger.warn("Session not bound to a channel");
+		else Main.logger.warn("Session not bound to a channel");
 	}
 
 	private void broadcastToChannel(String argument) {
@@ -124,7 +104,7 @@ class Session {
 
 	private ArrayList<Session> sessionsInSameChannel() {
 		if (connectedChannel == null) {
-			ConnectionManager.logger.warn("Session " + this + " not connected to a channel");
+			Main.logger.warn("Session " + this + " not connected to a channel");
 			return new ArrayList<>();
 		}
 		else {
@@ -136,33 +116,26 @@ class Session {
 		if (connectedAccount == null) {
 			connectedAccount = account;
 			account.login(this);
-			ConnectionManager.logger.info("Session bound to account " + account);
+			Main.logger.info("Session bound to account " + account);
 		}
-		else ConnectionManager.logger.warn("Session already bound to account " + account);
+		else Main.logger.warn("Session already bound to account " + account);
 	}
 
 	private void unSetAccount() {
 		if (connectedAccount != null) {
-			ConnectionManager.logger.info("Session unbound from account " + connectedAccount);
+			Main.logger.info("Session unbound from account " + connectedAccount);
 			this.connectedAccount.logout();
 			if (!connectedAccount.isPermanent()) {
-				server.removeAccount(this.connectedAccount);
+				server.removeAccount(connectedAccount);
+				connectedAccount.delete();
 			}
-			this.connectedAccount = null;;
+			this.connectedAccount = null;
 		}
-		else ConnectionManager.logger.warn("Session not bound to an account");
+		else Main.logger.warn("Session not bound to an account");
 	}
 
-	void messageClient(String message){
-		if (toClient != null) {
-			toClient.println(message);
-		} else {
-			ConnectionManager.logger.warn("Message sent to disconnected client");
-		}
-	}
-
-	void exit() {
-		state = EXIT;
+	void messageClient(String message){ // TODO temporary
+		output = String.join("\n", output, message);
 	}
 	
 	void helpCommandImp(Map<String, String> arguments) {
@@ -206,23 +179,23 @@ class Session {
 			else {
 				String oldLastLoginDate = account.lastLoginDate.toString();
 				setAccount(account);
+				messageClient("Login successful. Last login: " + oldLastLoginDate);
 				connectToChannel(Server.defaultChannel);
 				state = LOGGED_IN;
-				messageClient("Login successful. Last login: " + oldLastLoginDate);
 			}
 		} else {
 			messageClient("Incorrect username or password");
 		}
 	}
 
-	void logoutCommandImp(Map<String, String> arguments) {
+	void logoutCommandImp() {
 		disconnectFromChannel();
 		unSetAccount();
 		state = ENTRANCE;
 		messageClient("Returning to Entrance");
 	}
 
-	void accountsCommandImp(Map<String, String> arguments) {
+	void accountsCommandImp() {
 		String list = "";
 		for (Account a : server.accounts.getAccounts()) {
 			list += a.infoString() + "\n";
@@ -230,7 +203,11 @@ class Session {
 		messageClient(list);
 	}
 
-	void exitCommandImp(Map<String, String> arguments) {
+	public boolean isActive() {
+		return state != EXIT;
+	}
+
+	void exitCommandImp() {
 		messageClient("Disconnected by server");
 		state = EXIT;
 	}
@@ -276,6 +253,7 @@ class Session {
 				disconnectFromChannel();
 				unSetAccount();
 				server.removeAccount(account);
+				account.delete();
 				state = ENTRANCE;
 				messageClient("Account deleted. Returning to Entrance");
 			}
@@ -286,12 +264,12 @@ class Session {
 		}
 	}
 
-	void cancelCommandImp(Map<String, String> arguments) {
+	void cancelCommandImp() {
 		state = LOGGED_IN;
 		messageClient("Delete cancelled");
 	}
 
-	void friendsCommandImp(Map<String, String> arguments) {
+	void friendsCommandImp() {
 		messageClient(connectedAccount.relations.toString());
 	}
 

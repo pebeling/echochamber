@@ -4,15 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class AccountCollection {
-	private ArrayList<Account> accounts;
-
-	AccountCollection(){
-		accounts = new ArrayList<>();
-	}
-
+public class AccountCollection extends ArrayList<Account> {
 	synchronized public Account getAccountByName(String username) {
-		for (Account account : accounts) {
+		for (Account account : this) {
 			if (account.username().equals(username)) {
 				return account;
 			}
@@ -20,25 +14,15 @@ public class AccountCollection {
 		return null;
 	}
 
+	@Override
 	synchronized public boolean add(Account account) {
 		if (account == null) { return false ;}
 		else {
 			String username = account.username();
 			if (getUsernames().contains(username)) { return false; }
 			else {
-				accounts.add(account);
+				super.add(account);
 				return true;
-			}
-		}
-	}
-
-	synchronized public boolean remove(Account account) {
-		if (account == null) { return true; }
-		else {
-			if (accounts.remove(account)) {
-				return true;
-			} else {
-				return false;
 			}
 		}
 	}
@@ -49,22 +33,10 @@ public class AccountCollection {
 	}
 
 	synchronized public List<String> getUsernames() {
-		return accounts.stream().map(Account::username).collect(Collectors.toList());
+		return this.stream().map(Account::username).collect(Collectors.toList());
 	}
 
 	synchronized public List<Account> getAccounts() {
-		return accounts;
-	}
-
-	synchronized public void clear(){
-		accounts.clear();
-	}
-
-	synchronized public boolean contains(Account account) {
-		return accounts.contains(account);
-	}
-
-	public int size() {
-		return accounts.size();
+		return this;
 	}
 }

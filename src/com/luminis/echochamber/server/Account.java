@@ -41,7 +41,7 @@ class Account implements Serializable {
 		lastLoginDate = null;
 
 		if (username != null) {
-			ConnectionManager.logger.info("Created " + (permanent ? "persistent" : "temporary") + " account " + this);
+			Main.logger.info("Created " + (permanent ? "persistent" : "temporary") + " account " + this);
 		}
 	}
 
@@ -55,7 +55,7 @@ class Account implements Serializable {
 	}
 
 	synchronized void delete() {
-		ConnectionManager.logger.info("Deleted " + (permanent ? "persistent" : "temporary") + " account " + this);
+		Main.logger.info("Deleted " + (permanent ? "persistent" : "temporary") + " account " + this);
 
 		username = null;
 		salt = null;
@@ -87,7 +87,7 @@ class Account implements Serializable {
 		for(int i=0; i < hashedPassword.length; i++) {
 			passwordMatch = passwordMatch && (hashedPassword[i] == storedPasswordHash[i]);
 		}
-		ConnectionManager.logger.info((passwordMatch?"SUCCESSFUL":"FAILED") + " authentication attempt for account " + this);
+		Main.logger.info((passwordMatch?"SUCCESSFUL":"FAILED") + " authentication attempt for account " + this);
 		return passwordMatch;
 	}
 
@@ -111,9 +111,9 @@ class Account implements Serializable {
 			permanent = true;
 			relations = new Relations(this);
 
-			ConnectionManager.logger.info("Changed transient account " + this + " to permanent");
+			Main.logger.info("Changed transient account " + this + " to permanent");
 		}
-		else ConnectionManager.logger.warn("Account " + this + " is already a permanent account");
+		else Main.logger.warn("Account " + this + " is already a permanent account");
 	}
 
 	boolean isOnline() {
