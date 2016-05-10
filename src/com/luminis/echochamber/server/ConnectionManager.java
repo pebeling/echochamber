@@ -24,9 +24,9 @@ class ConnectionManager {
 				Socket socket = serverSocket.accept();
 				if (!running) break;
 				if (numberOfConnectedClients() + 1 > maxConnectedClients) {
-					PrintWriter toClient = new PrintWriter(socket.getOutputStream(), true);
-					toClient.println("Too many connections. Closing connection");
-					toClient.close();
+					PrintWriter toRemote = new PrintWriter(socket.getOutputStream(), true);
+					toRemote.println("Too many connections. Closing connection");
+					toRemote.close();
 					socket.close();
 					Main.logger.warn("Maximum number of simultaneous connections reached");
 				} else {
@@ -36,25 +36,25 @@ class ConnectionManager {
 							try {
 								Main.logger.info("Session started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
 
-								PrintWriter toClient = new PrintWriter(socket.getOutputStream(), true);
-								BufferedReader fromClient = new BufferedReader(
+								PrintWriter toRemote = new PrintWriter(socket.getOutputStream(), true);
+								BufferedReader fromRemote = new BufferedReader(
 										new InputStreamReader(socket.getInputStream())
 								);
 
 								Client client = new Client(server);
-								toClient.println(TextColors.colorServermessage(welcomeMessage()));
+								toRemote.println(TextColors.colorServermessage(welcomeMessage()));
 
 								String input;
 
 								while (client.isActive()) {
 									try {
-										input = fromClient.readLine();
+										input = fromRemote.readLine();
 										if (input == null) {
 											Main.logger.info("Client has disconnected from server");
 											break;
 										} else {
 											client.receive(input);
-											toClient.println(client.output); // TODO: temporary, should go via Server
+											toRemote.println(client.output); // TODO: temporary, should go via Server
 										}
 									} catch (IOException e) {
 										e.printStackTrace();
@@ -65,8 +65,8 @@ class ConnectionManager {
 
 								client.end();
 
-								fromClient.close();
-								toClient.close();
+								fromRemote.close();
+								toRemote.close();
 								socket.close();
 							} catch (IOException e) {
 								e.printStackTrace();
