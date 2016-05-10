@@ -66,9 +66,9 @@ abstract class Command {
 }
 
 class helpCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	helpCommand (Session receiver) {
+	helpCommand (Client receiver) {
 		super(
 				"help",
 				"Either lists all available commands or gives info on a specific command.",
@@ -88,9 +88,9 @@ class helpCommand extends Command {
 }
 
 class setnameCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	setnameCommand(Session receiver) {
+	setnameCommand(Client receiver) {
 		super(
 				"setname",
 				"Sets a username and connects to the default channel as a temporary account.",
@@ -109,9 +109,9 @@ class setnameCommand extends Command {
 }
 
 class setpwdCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	setpwdCommand (Session receiver) {
+	setpwdCommand (Client receiver) {
 		super(
 				"setpwd",
 				"creates new account.",
@@ -130,9 +130,9 @@ class setpwdCommand extends Command {
 }
 
 class loginCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 	
-	loginCommand (Session receiver) {
+	loginCommand (Client receiver) {
 		super(
 				"login", 
 				"Log in to your account.",
@@ -151,9 +151,9 @@ class loginCommand extends Command {
 }
 
 class logoutCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	logoutCommand (Session receiver) {
+	logoutCommand (Client receiver) {
 		super(
 				"logout", 
 				"Logs out.",
@@ -172,9 +172,9 @@ class logoutCommand extends Command {
 }
 
 class accountsCommand extends Command { // TODO: should be admin command only
-	private Session receiver;
+	private Client receiver;
 
-	accountsCommand (Session receiver) {
+	accountsCommand (Client receiver) {
 		super(
 				"accounts", 
 				"Lists all accounts.",
@@ -193,9 +193,9 @@ class accountsCommand extends Command { // TODO: should be admin command only
 }
 
 class exitCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	exitCommand (Session receiver) {
+	exitCommand (Client receiver) {
 		super(
 				"exit", 
 				"Ends the current session.",
@@ -214,9 +214,9 @@ class exitCommand extends Command {
 }
 
 class usersCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	usersCommand (Session receiver) {
+	usersCommand (Client receiver) {
 		super(
 				"users",
 				"Lists online users.",
@@ -236,9 +236,9 @@ class usersCommand extends Command {
 }
 
 class whisperCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	whisperCommand (Session receiver) {
+	whisperCommand (Client receiver) {
 		super(
 				"whisper",
 				"Sends a message to a specific user.",
@@ -257,9 +257,9 @@ class whisperCommand extends Command {
 }
 
 class shoutCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	shoutCommand (Session receiver) { // TODO: should be "all on server" once multiple channel are possible. Command "talk" to speak to all in channel
+	shoutCommand (Client receiver) { // TODO: should be "all on server" once multiple channel are possible. Command "talk" to speak to all in channel
 		super(
 				"shout",
 				"Sends a message to all in the channel (default).",
@@ -279,9 +279,9 @@ class shoutCommand extends Command {
 }
 
 class deleteCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	deleteCommand (Session receiver) {
+	deleteCommand (Client receiver) {
 		super(
 				"delete",
 				"Deletes your account.",
@@ -301,9 +301,9 @@ class deleteCommand extends Command {
 }
 
 class cancelCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	cancelCommand (Session receiver) {
+	cancelCommand (Client receiver) {
 		super(
 				"cancel", 
 				"Cancels delete.",
@@ -322,9 +322,9 @@ class cancelCommand extends Command {
 }
 
 class friendsCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	friendsCommand (Session receiver) {
+	friendsCommand (Client receiver) {
 		super(
 				"friends", 
 				"List all friends and friend request statuses.",
@@ -343,9 +343,9 @@ class friendsCommand extends Command {
 }
 
 class befriendCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	befriendCommand (Session receiver) {
+	befriendCommand (Client receiver) {
 		super(
 				"befriend",
 				"Sends someone a friend request or accepts a request.",
@@ -364,9 +364,9 @@ class befriendCommand extends Command {
 }
 
 class unfriendCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	unfriendCommand (Session receiver) {
+	unfriendCommand (Client receiver) {
 		super(
 				"unfriend", 
 				"Removes someone from your friend list or cancels a friend request.",
@@ -385,9 +385,9 @@ class unfriendCommand extends Command {
 }
 
 class noCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	noCommand (Session receiver) {
+	noCommand (Client receiver) {
 		super(
 				"no",
 				"",
@@ -407,9 +407,9 @@ class noCommand extends Command {
 }
 
 class invalidCommand extends Command {
-	private Session receiver;
+	private Client receiver;
 
-	invalidCommand (Session receiver) {
+	invalidCommand (Client receiver) {
 		super(
 				"invalid",
 				"",

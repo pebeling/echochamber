@@ -31,7 +31,7 @@ class ConnectionManager {
 					Main.logger.warn("Maximum number of simultaneous connections reached");
 				} else {
 					UUID id = Security.createUUID();
-					new Thread("Session " + id) {
+					new Thread("Client " + id) {
 						public void run() {
 							try {
 								Main.logger.info("Session started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
@@ -41,20 +41,20 @@ class ConnectionManager {
 										new InputStreamReader(socket.getInputStream())
 								);
 
-								Session session = new Session(server);
+								Client client = new Client(server);
 								toClient.println(TextColors.colorServermessage(welcomeMessage()));
 
 								String input;
 
-								while (session.isActive()) {
+								while (client.isActive()) {
 									try {
 										input = fromClient.readLine();
 										if (input == null) {
 											Main.logger.info("Client has disconnected from server");
 											break;
 										} else {
-											session.receive(input);
-											toClient.println(session.output); // TODO: temporary, should go via Server
+											client.receive(input);
+											toClient.println(client.output); // TODO: temporary, should go via Server
 										}
 									} catch (IOException e) {
 										e.printStackTrace();
@@ -63,7 +63,7 @@ class ConnectionManager {
 								}
 								Main.logger.info("Server has closed the connection to client");
 
-								session.end();
+								client.end();
 
 								fromClient.close();
 								toClient.close();
@@ -84,7 +84,7 @@ class ConnectionManager {
 	}
 
 	private int numberOfConnectedClients() {
-		return server.sessions.size();
+		return server.clients.size();
 	}
 
 	private String welcomeMessage() {

@@ -3,11 +3,11 @@ package com.luminis.echochamber.server;
 import java.util.ArrayList;
 
 class Channel {
-	private volatile ArrayList<Session> connectedSessions;
+	private volatile ArrayList<Client> connectedClients;
 	private String name;
 
 	Channel(String channelName) {
-		connectedSessions = new ArrayList<>();
+		connectedClients = new ArrayList<>();
 		name = channelName;
 	}
 
@@ -16,43 +16,43 @@ class Channel {
 		return "[" + name + "]";
 	}
 
-	synchronized void subscribe(Session session) {
-		if (!connectedSessions.contains(session)) {
-			connectedSessions.add(session);
-			broadcast("User " + TextColors.colorUserName(session.connectedAccount.username()) + " joined channel " + this);
+	synchronized void subscribe(Client client) {
+		if (!connectedClients.contains(client)) {
+			connectedClients.add(client);
+			broadcast("User " + TextColors.colorUserName(client.connectedAccount.username()) + " joined channel " + this);
 		}
 	}
 
-	synchronized void unSubscribe(Session session) {
-		if (connectedSessions.contains(session)) {
-			if (session.connectedAccount != null ) broadcast("User " + TextColors.colorUserName(session.connectedAccount.username()) + " left channel " + this);
-			connectedSessions.remove(session);
+	synchronized void unSubscribe(Client client) {
+		if (connectedClients.contains(client)) {
+			if (client.connectedAccount != null ) broadcast("User " + TextColors.colorUserName(client.connectedAccount.username()) + " left channel " + this);
+			connectedClients.remove(client);
 		}
 	}
 
-	synchronized void shout(String message, Session sender) {
+	synchronized void shout(String message, Client sender) {
 		broadcast(TextColors.colorUserName(sender.connectedAccount.username()) + "> " + message);
 	}
 
-//	synchronized private void broadcast(String messageClient, Session sender) {
-//		connectedSessions.stream().filter(
-//				session -> !session.equals(sender)
+//	synchronized private void broadcast(String messageClient, Client sender) {
+//		connectedClients.stream().filter(
+//				client -> !client.equals(sender)
 //		).forEach(
-//				session -> session.messageClient(messageClient)
+//				client -> client.messageClient(messageClient)
 //		);
 //	}
 
 	synchronized private void broadcast(String message) {
-		connectedSessions.stream().forEach(
-				session -> session.messageClient(message)
+		connectedClients.stream().forEach(
+				client -> client.messageClient(message)
 		);
 	}
 
-//	synchronized public ArrayList<String> listSessions() {
-//		return connectedSessions.stream().map(session -> session.connectedAccount.username()).collect(Collectors.toCollection(ArrayList::new));
+//	synchronized public ArrayList<String> listClients() {
+//		return connectedClients.stream().map(client -> client.connectedAccount.username()).collect(Collectors.toCollection(ArrayList::new));
 //	}
 
-	ArrayList<Session> getConnectedSessions() {
-		return connectedSessions;
+	ArrayList<Client> getConnectedClients() {
+		return connectedClients;
 	}
 }

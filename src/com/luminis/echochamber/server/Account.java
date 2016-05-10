@@ -7,7 +7,7 @@ import java.util.UUID;
 class Account implements Serializable {
 	private final UUID id;
 	private final Date creationDate;
-	transient Session currentSession;
+	transient Client currentClient;
 
 	private String username;
 	private String salt;
@@ -35,7 +35,7 @@ class Account implements Serializable {
 
 		this.username = username;
 		creationDate = new Date();
-		currentSession = null;
+		currentClient = null;
 
 		online = false;
 		lastLoginDate = null;
@@ -67,16 +67,16 @@ class Account implements Serializable {
 		return username;
 	}
 
-	synchronized void login(Session session){
-		if(currentSession == null) {
-			currentSession = session;
+	synchronized void login(Client client){
+		if(currentClient == null) {
+			currentClient = client;
 			online = true;
 			lastLoginDate = new Date();
 		}
 	}
 
 	synchronized void logout() {
-		currentSession = null;
+		currentClient = null;
 		online = false;
 	}
 
@@ -126,6 +126,6 @@ class Account implements Serializable {
 
 	String infoString() {
 		return "Name: " + this.username() + ", Type: " + (permanent ? "Permanent" : "Transient") + ", Status: "
-				+ (online ? "Online" : "Offline") + ", Current channel: " + (currentSession == null ? "none" : currentSession.connectedChannel);
+				+ (online ? "Online" : "Offline") + ", Current channel: " + (currentClient == null ? "none" : currentClient.connectedChannel);
 	}
 }

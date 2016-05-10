@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public class Server {
 	AccountCollection accounts = new AccountCollection();
-	ArrayList<Session> sessions = new ArrayList<>();
+	ArrayList<Client> clients = new ArrayList<>();
 	private volatile ArrayList<Channel> channels = new ArrayList<>();
 
 	static Channel defaultChannel = new Channel("Default");
@@ -20,10 +20,10 @@ public class Server {
 		accounts.add(account);
 	}
 
-	synchronized void add(Session session) {
-		sessions.add(session);
+	synchronized void add(Client client) {
+		clients.add(client);
 	}
-	synchronized void remove(Session session) {
-		sessions.remove(session);
+	synchronized void remove(Client client) {
+		clients.remove(client);
 	}
 }

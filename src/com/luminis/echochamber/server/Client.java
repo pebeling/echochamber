@@ -1,9 +1,9 @@
 package com.luminis.echochamber.server;
 import java.util.*;
 
-import static com.luminis.echochamber.server.SessionState.*;
+import static com.luminis.echochamber.server.ClientState.*;
 
-enum SessionState {
+enum ClientState {
 	ENTRANCE	(new String[]{"exit", "help", "setname", "login"}),
 	TRANSIENT	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "setpwd"}),
 	LOGGED_IN	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "befriend", "unfriend", "friends", "delete", "accounts"}),
@@ -11,7 +11,7 @@ enum SessionState {
 	EXIT		(new String[]{});
 
 	String[] validCommands;
-	SessionState(String[] validCommands){
+	ClientState(String[] validCommands){
 		this.validCommands = validCommands;
 	}
 
@@ -23,15 +23,15 @@ enum SessionState {
 	}
 }
 
-class Session {
+class Client {
 	private Server server;
 	private InputParser parser = new InputParser();
-	private SessionState state;
+	private ClientState state;
 	Channel connectedChannel = null;
 	Account connectedAccount = null;
 	String output; // TODO temporary until interaction with Server class  updated
 
-	Session(Server server) {
+	Client(Server server) {
 		this.server = server;
 		this.server.add(this);
 		registerCommands();
@@ -84,31 +84,31 @@ class Session {
 		if (this.connectedChannel == null) {
 			this.connectedChannel = channel;
 			channel.subscribe(this);
-			Main.logger.info("Session bound to channel " + channel);
+			Main.logger.info("Client bound to channel " + channel);
 		}
-		else Main.logger.warn("Session already bound to channel " + this.connectedChannel);
+		else Main.logger.warn("Client already bound to channel " + this.connectedChannel);
 	}
 
 	private void disconnectFromChannel() {
 		if (connectedChannel != null) {
-			Main.logger.info("Session unbound from channel " + connectedChannel);
+			Main.logger.info("Client unbound from channel " + connectedChannel);
 			connectedChannel.unSubscribe(this);
 			connectedChannel = null;
 		}
-		else Main.logger.warn("Session not bound to a channel");
+		else Main.logger.warn("Client not bound to a channel");
 	}
 
 	private void broadcastToChannel(String argument) {
 		connectedChannel.shout(argument, this);
 	}
 
-	private ArrayList<Session> sessionsInSameChannel() {
+	private ArrayList<Client> clientsInSameChannel() {
 		if (connectedChannel == null) {
-			Main.logger.warn("Session " + this + " not connected to a channel");
+			Main.logger.warn("Client " + this + " not connected to a channel");
 			return new ArrayList<>();
 		}
 		else {
-			return connectedChannel.getConnectedSessions();
+			return connectedChannel.getConnectedClients();
 		}
 	}
 
@@ -116,14 +116,14 @@ class Session {
 		if (connectedAccount == null) {
 			connectedAccount = account;
 			account.login(this);
-			Main.logger.info("Session bound to account " + account);
+			Main.logger.info("Client bound to account " + account);
 		}
-		else Main.logger.warn("Session already bound to account " + account);
+		else Main.logger.warn("Client already bound to account " + account);
 	}
 
 	private void unSetAccount() {
 		if (connectedAccount != null) {
-			Main.logger.info("Session unbound from account " + connectedAccount);
+			Main.logger.info("Client unbound from account " + connectedAccount);
 			this.connectedAccount.logout();
 			if (!connectedAccount.isPermanent()) {
 				server.removeAccount(connectedAccount);
@@ -131,7 +131,7 @@ class Session {
 			}
 			this.connectedAccount = null;
 		}
-		else Main.logger.warn("Session not bound to an account");
+		else Main.logger.warn("Client not bound to an account");
 	}
 
 	void messageClient(String message){ // TODO temporary
@@ -215,11 +215,11 @@ class Session {
 	void usersCommandImp(Map<String, String> arguments) {
 		if(arguments.size() == 0) {
 			String list = "";
-			for (Session session : sessionsInSameChannel()) {
+			for (Client client : clientsInSameChannel()) {
 				if (!list.equals("")) {
 					list += "\n";
 				}
-				list += session.connectedAccount.username() + " (" + (session.connectedAccount.isPermanent() ? "permanent" : "transient") +")";
+				list += client.connectedAccount.username() + " (" + (client.connectedAccount.isPermanent() ? "permanent" : "transient") +")";
 			}
 			messageClient(list);
 		} else messageClient("??"); // TODO: implement once users can create channels
@@ -230,7 +230,7 @@ class Session {
 		if (account == null){
 			messageClient("No account with username " + arguments.get("username") + " found");
 		} else if (account.isOnline()) {
-			account.currentSession.messageClient(connectedAccount.username() + " whispers: " + arguments.get("message"));
+			account.currentClient.messageClient(connectedAccount.username() + " whispers: " + arguments.get("message"));
 			messageClient("You whispered a message to " + account.username());
 		} else {
 			messageClient("User " + account.username() + " is not online");

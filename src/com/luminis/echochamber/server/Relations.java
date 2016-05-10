@@ -85,7 +85,7 @@ public class Relations {
 		String friendStatus = "";
 		friendStatus += "Current friends:\n";
 		for (Account friend : friends.getAccounts()) {
-			friendStatus += "\t" + friend.username() + " " + (friend.isOnline() ? friend.currentSession.connectedChannel : "[OFFLINE]") + " \n";
+			friendStatus += "\t" + friend.username() + " " + (friend.isOnline() ? friend.currentClient.connectedChannel : "[OFFLINE]") + " \n";
 		}
 		friendStatus += "Pending sent friend requests: \n";
 		for (Account friend : sentFriendRequests.getAccounts()) {
