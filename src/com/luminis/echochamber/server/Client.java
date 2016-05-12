@@ -15,7 +15,7 @@ enum ClientState {
 		this.validCommands = validCommands;
 	}
 
-	public boolean isValid(String command) {
+	public boolean accepts(String command) {
 		for(String s : validCommands) {
 			if (s.equals(command)) return true;
 		}
@@ -27,9 +27,9 @@ class Client {
 	private Server server;
 	private InputParser parser = new InputParser();
 	private ClientState state;
+	private Queue<String> output = new LinkedList<>();
 	Channel connectedChannel = null;
 	Account connectedAccount = null;
-	String output; // TODO temporary until interaction with Server class  updated
 
 	Client(Server server) {
 		this.server = server;
@@ -38,20 +38,31 @@ class Client {
 		state = ENTRANCE;
 	}
 
+	public boolean isActive() {
+		return state != EXIT;
+	}
+
 	public void receive(String input) {
-		output = "";
-		parser.evaluateInput(input);
-		if (parser.command == null) {
-			Main.logger.error("Null command received");
-		} else if (state.isValid(parser.command.getName()) || parser.command.getName().equals("no") || parser.command.getName().equals("invalid")) {
-			try {
-				parser.command.execute(parser.arguments);
-			} catch (Exception e) {
-				messageClient(e.getMessage() + " for command '" + parser.command.getName() + "'. " + parser.command.getUsage());
+		try {
+			String output = parser.evaluate(state, input);
+			if (output != null) {
+				messageClient(output);
 			}
-		} else {
-			messageClient("Command not available in this context");
+		} catch (Exception e) {
+			messageClient(e.getMessage());
 		}
+	}
+
+	String emit() {
+		return output.poll();
+	}
+
+	boolean outputAvailable() {
+		return ( output.peek() != null );
+	}
+
+	void messageClient(String message){ // TODO temporary
+		output.add(message);
 	}
 
 	public void end() {
@@ -76,8 +87,7 @@ class Client {
 		parser.addCommand(new friendsCommand	(this));
 		parser.addCommand(new befriendCommand	(this));
 		parser.addCommand(new unfriendCommand	(this));
-		parser.addCommand(new noCommand			(this));
-		parser.addCommand(new invalidCommand	(this));
+		parser.addCommand(new noCommand			());
 	}
 
 	private void connectToChannel(Channel channel) {
@@ -134,85 +144,78 @@ class Client {
 		else Main.logger.warn("Client not bound to an account");
 	}
 
-	void messageClient(String message){ // TODO temporary
-		output = String.join("\n", output, message);
-	}
-	
-	void helpCommandImp(Map<String, String> arguments) {
-		if (arguments.size() == 0) {
-			messageClient("Available commands: " + String.join(", ", state.validCommands));
-		} else if (arguments.get("command name") != null) {
+	String helpCommandImp(Map<String, String> arguments) {
+		if (arguments.size() == 0 || (arguments.get("command name") == null)) {
+			return "Available commands: " + String.join(", ", state.validCommands);
+		} else {
 			String command = arguments.get("command name");
-			if (state.isValid(command)) {
-				messageClient(parser.commands.get(command).getDescription() + " " + parser.commands.get(command).getUsage());
+			if (state.accepts(command)) {
+				return parser.commands.get(command).getDescription() + " " + parser.commands.get(command).getUsage();
 			} else {
-				messageClient("Error: No such command \"" + command + "\"");
+				return "Error: No such command \'" + command + "\'";
 			}
 		}
 	}
 
-	void setnameCommandImp(Map<String, String> arguments) {
+	String setnameCommandImp(Map<String, String> arguments) {
 		Account account = new Account(arguments.get("username")); // Create temporary account
 		try {
 			server.addAccount(account);
-			setAccount(account);
 		} catch (Exception e) {
 			account.delete();
-			messageClient("Unable to create temporary account with nickname: " + arguments.get("username"));
+			return "Unable to create temporary account with name: " + arguments.get("username");
 		}
 		state = TRANSIENT;
+		setAccount(account);
 		connectToChannel(Server.defaultChannel);
+		return "You are now logged in as " + arguments.get("username");
 	}
 
-	void setpwdCommandImp(Map<String, String> arguments) {
+	String setpwdCommandImp(Map<String, String> arguments) {
 		connectedAccount.makePermanent(arguments.get("password").getBytes());
 		state = LOGGED_IN;
-		messageClient("Account now permanent");
+		return "Account now permanent";
 	}
 
-	void loginCommandImp(Map<String, String> arguments) {
+	String loginCommandImp(Map<String, String> arguments) {
 		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account != null && account.checkPassword(arguments.get("password").getBytes())) {
 			if (account.isOnline()) {
-				messageClient("Account already logged in");
+				return "Account already logged in";
 			}
 			else {
 				String oldLastLoginDate = account.lastLoginDate.toString();
 				setAccount(account);
-				messageClient("Login successful. Last login: " + oldLastLoginDate);
 				connectToChannel(Server.defaultChannel);
 				state = LOGGED_IN;
+				return "Login successful. Last login: " + oldLastLoginDate;
 			}
 		} else {
-			messageClient("Incorrect username or password");
+			return "Incorrect username or password";
 		}
 	}
 
-	void logoutCommandImp() {
+	String logoutCommandImp() {
 		disconnectFromChannel();
 		unSetAccount();
 		state = ENTRANCE;
-		messageClient("Returning to Entrance");
+		return "Returning to Entrance";
 	}
 
-	void accountsCommandImp() {
+	String accountsCommandImp() {
 		String list = "";
 		for (Account a : server.accounts.getAccounts()) {
 			list += a.infoString() + "\n";
 		}
-		messageClient(list);
+		return list;
 	}
 
-	public boolean isActive() {
-		return state != EXIT;
-	}
-
-	void exitCommandImp() {
-		messageClient("Disconnected by server");
+	String exitCommandImp() {
 		state = EXIT;
+		return "Disconnected by server";
 	}
 
-	void usersCommandImp(Map<String, String> arguments) {
+	String usersCommandImp(Map<String, String> arguments) {
 		if(arguments.size() == 0) {
 			String list = "";
 			for (Client client : clientsInSameChannel()) {
@@ -221,32 +224,33 @@ class Client {
 				}
 				list += client.connectedAccount.username() + " (" + (client.connectedAccount.isPermanent() ? "permanent" : "transient") +")";
 			}
-			messageClient(list);
-		} else messageClient("??"); // TODO: implement once users can create channels
+			return list;
+		} else return "??"; // TODO: implement once users can create channels
 	}
 
-	void whisperCommandImp(Map<String, String> arguments) {
+	String whisperCommandImp(Map<String, String> arguments) {
 		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No account with username " + arguments.get("username") + " found");
+			return "No account with username " + arguments.get("username") + " found";
 		} else if (account.isOnline()) {
 			account.currentClient.messageClient(connectedAccount.username() + " whispers: " + arguments.get("message"));
-			messageClient("You whispered a message to " + account.username());
+			return "You whispered a message to " + account.username();
 		} else {
-			messageClient("User " + account.username() + " is not online");
+			return "User " + account.username() + " is not online";
 		}
 	}
 
-	void shoutCommandImp(Map<String, String> arguments) {
+	String shoutCommandImp(Map<String, String> arguments) {
 		if (arguments.get("message") != null) {
 			broadcastToChannel(arguments.get("message"));
 		}
+		return null;
 	}
 
-	void deleteCommandImp(Map<String, String> arguments) {
+	String deleteCommandImp(Map<String, String> arguments) {
 		if(state == LOGGED_IN) {
 			state = DELETE_CONF;
-			messageClient("This will delete your account!\nType /delete <password> to confirm!");
+			return "This will delete your account!\nType /delete <password> to confirm!";
 		} else if (state == DELETE_CONF) {
 			Account account = connectedAccount;
 			if (arguments.size() == 1 && account.checkPassword(arguments.get("password").getBytes())) {
@@ -255,64 +259,49 @@ class Client {
 				server.removeAccount(account);
 				account.delete();
 				state = ENTRANCE;
-				messageClient("Account deleted. Returning to Entrance");
+				return "Account deleted. Returning to Entrance";
 			}
 			else {
 				state = LOGGED_IN;
-				messageClient("Missing or incorrect password. Cancelling deletion.");
+				return "Missing or incorrect password. Cancelling deletion.";
 			}
+		} else {
+			return null;
 		}
 	}
 
-	void cancelCommandImp() {
+	String cancelCommandImp() {
 		state = LOGGED_IN;
-		messageClient("Delete cancelled");
+		return "Delete cancelled";
 	}
 
-	void friendsCommandImp() {
-		messageClient(connectedAccount.relations.toString());
+	String friendsCommandImp() {
+		return connectedAccount.relations.toString();
 	}
 
-	void befriendCommandImp(Map<String, String> arguments) {
+	String befriendCommandImp(Map<String, String> arguments) {
 		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No account with username " + arguments.get("username") + " found");
+			return "No account with username " + arguments.get("username") + " found";
 		} else if (!account.isPermanent()) {
-			messageClient("You can only send friend requests to permanent accounts");
+			return "You can only send friend requests to permanent accounts";
 		} else if (account.equals(connectedAccount)) {
-			messageClient("Get a life!");
+			return "Get a life!";
 		} else {
 			connectedAccount.addRelation(account);
-			messageClient("Friend request sent");
+			return "Friend request sent";
 		}
 	}
 
-	void unfriendCommandImp(Map<String, String> arguments) {
+	String unfriendCommandImp(Map<String, String> arguments) {
 		Account account = server.accounts.getAccountByName(arguments.get("username"));
 		if (account == null){
-			messageClient("No account with username " + arguments.get("username") + " found");
+			return "No account with username " + arguments.get("username") + " found";
 //		} else if (!connectedAccount.friends.contains(account)) {
-//			messageClient(account.username() + "is not in your friend list");
+//			return account.username() + "is not in your friend list";
 		} else {
 			connectedAccount.removeRelation(account);
-			messageClient("You removed " + account.username() + " from your friend list");
-		}
-	}
-
-	void noCommandImp(Map<String, String> arguments) {
-		if (state == ENTRANCE) {
-			helpCommandImp(arguments);
-		} else if (state == LOGGED_IN || state == TRANSIENT) {
-			arguments.put("message", arguments.get("arguments"));
-			shoutCommandImp(arguments);
-		}
-	}
-	
-	void invalidCommandImp(Map<String, String> arguments) {
-		if ( arguments.get("command") == null) {
-			messageClient("Invalid");
-		} else {
-			messageClient("Invalid command '" + arguments.get("command") + "'");
+			return "You removed " + account.username() + " from your friend list";
 		}
 	}
 }

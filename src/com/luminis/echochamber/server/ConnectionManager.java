@@ -3,13 +3,12 @@ package com.luminis.echochamber.server;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Date;
 import java.util.UUID;
 
 class ConnectionManager {
 	private int port;
 	private Server server;
-	private static int maxConnectedClients = 3;
+	public static int maxConnectedClients = 3;
 
 	ConnectionManager(int port, Server server) {
 		this.port = port;
@@ -23,7 +22,7 @@ class ConnectionManager {
 			while (running) {
 				Socket socket = serverSocket.accept();
 				if (!running) break;
-				if (numberOfConnectedClients() + 1 > maxConnectedClients) {
+				if (server.numberOfClients() >= maxConnectedClients) {
 					PrintWriter toRemote = new PrintWriter(socket.getOutputStream(), true);
 					toRemote.println("Too many connections. Closing connection");
 					toRemote.close();
@@ -33,28 +32,28 @@ class ConnectionManager {
 					UUID id = Security.createUUID();
 					new Thread("Client " + id) {
 						public void run() {
-							try {
-								Main.logger.info("Session started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
-
+							Main.logger.info("Session started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
+							try (
 								PrintWriter toRemote = new PrintWriter(socket.getOutputStream(), true);
 								BufferedReader fromRemote = new BufferedReader(
 										new InputStreamReader(socket.getInputStream())
-								);
-
+								)
+							) {
 								Client client = new Client(server);
-								toRemote.println(TextColors.colorServermessage(welcomeMessage()));
-
-								String input;
 
 								while (client.isActive()) {
 									try {
-										input = fromRemote.readLine();
-										if (input == null) {
-											Main.logger.info("Client has disconnected from server");
-											break;
-										} else {
-											client.receive(input);
-											toRemote.println(client.output); // TODO: temporary, should go via Server
+										if (socket.getInputStream().available() > 0) { // TODO: to make read non blocking. Broke check for disconnect however
+											String input = fromRemote.readLine();
+											if (input == null) {
+												Main.logger.info("Client has disconnected from server");
+												break;
+											} else {
+												client.receive(input);
+											}
+										}
+										if (client.outputAvailable()) {
+											toRemote.println(client.emit());
 										}
 									} catch (IOException e) {
 										e.printStackTrace();
@@ -81,21 +80,5 @@ class ConnectionManager {
 			System.err.println("Could not listen on port " + port);
 			System.exit(-1);
 		}
-	}
-
-	private int numberOfConnectedClients() {
-		return server.clients.size();
-	}
-
-	private String welcomeMessage() {
-		String[] lines = new String[]{
-				"--------------------------------------------------",
-				"Welcome to the EchoChamber chat server!",
-				"Local time is: " + new Date(),
-				"You are client " + numberOfConnectedClients() + " of " + maxConnectedClients + ".",
-				"Use /help or /help <command> for more information.",
-				"--------------------------------------------------"
-		};
-		return String.join("\n", lines);
 	}
 }

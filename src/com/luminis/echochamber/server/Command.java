@@ -6,6 +6,7 @@ abstract class Command {
 	private String commandName, description;
 	private String[][] usages;
 	private boolean greedyLastArgument;
+	Map<String, String> arguments = new HashMap<>();
 
 	String getName() {
 		return commandName;
@@ -26,7 +27,7 @@ abstract class Command {
 	String getDescription() {
 		return description;
 	}
-	abstract void execute(String arguments) throws Exception;
+	abstract String execute();
 
 	Command(String commandName, String description, String[][] usages, boolean greedyLastArgument) {
 		this.commandName = commandName;
@@ -35,7 +36,7 @@ abstract class Command {
 		this.greedyLastArgument = greedyLastArgument;
 	}
 
-	Map<String, String> argumentStringParser(String arguments) throws Exception {
+	public void argumentStringParser(String arguments) throws Exception {
 		List< Map<String, String> > argumentMapList = new ArrayList<>();
 
 		// try to match the string to the entries in usages
@@ -61,7 +62,7 @@ abstract class Command {
 		if (argumentMapList.isEmpty()) {throw new Exception("Wrong number of arguments");}
 		if (argumentMapList.size() > 1 ) {throw new Exception("Ambiguous arguments");} // indicates an error in usages array for this command
 
-		return argumentMapList.get(0);
+		this.arguments = argumentMapList.get(0);
 	}
 }
 
@@ -81,9 +82,8 @@ class helpCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.helpCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.helpCommandImp(arguments);
 	}
 }
 
@@ -102,9 +102,8 @@ class setnameCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.setnameCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.setnameCommandImp(arguments);
 	}
 }
 
@@ -123,9 +122,8 @@ class setpwdCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.setpwdCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.setpwdCommandImp(arguments);
 	}
 }
 
@@ -144,9 +142,8 @@ class loginCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.loginCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.loginCommandImp(arguments);
 	}
 }
 
@@ -165,9 +162,8 @@ class logoutCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		argumentStringParser(arguments);
-		receiver.logoutCommandImp();
+	public String execute() {
+		return receiver.logoutCommandImp();
 	}
 }
 
@@ -186,9 +182,8 @@ class accountsCommand extends Command { // TODO: should be admin command only
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		argumentStringParser(arguments);
-		receiver.accountsCommandImp();
+	public String execute() {
+		return receiver.accountsCommandImp();
 	}
 }
 
@@ -207,9 +202,8 @@ class exitCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		argumentStringParser(arguments);
-		receiver.exitCommandImp();
+	public String execute() {
+		return receiver.exitCommandImp();
 	}
 }
 
@@ -229,9 +223,8 @@ class usersCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.usersCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.usersCommandImp(arguments);
 	}
 }
 
@@ -250,16 +243,15 @@ class whisperCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.whisperCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.whisperCommandImp(arguments);
 	}
 }
 
 class shoutCommand extends Command {
 	private Client receiver;
 
-	shoutCommand (Client receiver) { // TODO: should be "all on server" once multiple channel are possible. Command "talk" to speak to all in channel
+	shoutCommand (Client receiver) { // TODO: should message "everyone on server" once multiple channel are possible. Command "talk" to speak to all in channel
 		super(
 				"shout",
 				"Sends a message to all in the channel (default).",
@@ -272,9 +264,8 @@ class shoutCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.shoutCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.shoutCommandImp(arguments);
 	}
 }
 
@@ -294,9 +285,8 @@ class deleteCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.deleteCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.deleteCommandImp(arguments);
 	}
 }
 
@@ -315,9 +305,8 @@ class cancelCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		argumentStringParser(arguments);
-		receiver.cancelCommandImp();
+	public String execute() {
+		return receiver.cancelCommandImp();
 	}
 }
 
@@ -336,9 +325,8 @@ class friendsCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		argumentStringParser(arguments);
-		receiver.friendsCommandImp();
+	public String execute() {
+		return receiver.friendsCommandImp();
 	}
 }
 
@@ -357,9 +345,8 @@ class befriendCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.befriendCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.befriendCommandImp(arguments);
 	}
 }
 
@@ -378,52 +365,22 @@ class unfriendCommand extends Command {
 		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.unfriendCommandImp(argumentsMap);
+	public String execute() {
+		return receiver.unfriendCommandImp(arguments);
 	}
 }
 
 class noCommand extends Command {
-	private Client receiver;
-
-	noCommand (Client receiver) {
+	noCommand () {
 		super(
 				"no",
 				"",
-				new String[][]{
-					{ },
-					{ "arguments" }
-				},
+				new String[][]{{}},
 				true
 		);
-		this.receiver = receiver;
 	}
 
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.noCommandImp(argumentsMap);
-	}
-}
-
-class invalidCommand extends Command {
-	private Client receiver;
-
-	invalidCommand (Client receiver) {
-		super(
-				"invalid",
-				"",
-				new String[][]{
-						{ },
-						{ "command" }
-				},
-				false
-		);
-		this.receiver = receiver;
-	}
-
-	public void execute(String arguments) throws Exception {
-		Map<String, String> argumentsMap = argumentStringParser(arguments);
-		receiver.invalidCommandImp(argumentsMap);
+	public String execute() {
+		return null;
 	}
 }

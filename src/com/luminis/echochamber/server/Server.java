@@ -1,10 +1,11 @@
 package com.luminis.echochamber.server;
 
 import java.util.ArrayList;
+import java.util.Date;
 
 public class Server {
 	AccountCollection accounts = new AccountCollection();
-	ArrayList<Client> clients = new ArrayList<>();
+	private ArrayList<Client> clients = new ArrayList<>();
 	private volatile ArrayList<Channel> channels = new ArrayList<>();
 
 	static Channel defaultChannel = new Channel("Default");
@@ -22,8 +23,25 @@ public class Server {
 
 	synchronized void add(Client client) {
 		clients.add(client);
+		client.messageClient(welcomeMessage());
 	}
 	synchronized void remove(Client client) {
 		clients.remove(client);
+	}
+
+	public int numberOfClients() {
+		return clients.size();
+	}
+
+	private String welcomeMessage() {
+		String[] lines = new String[]{
+				"--------------------------------------------------",
+				"Welcome to the EchoChamber chat server!",
+				"Local time is: " + new Date(),
+				"You are client " + numberOfClients() + " of " + ConnectionManager.maxConnectedClients + ".",
+				"Use /help or /help <command> for more information.",
+				"--------------------------------------------------"
+		};
+		return String.join("\n", lines);
 	}
 }

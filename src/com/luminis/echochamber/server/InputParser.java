@@ -4,42 +4,55 @@ import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.luminis.echochamber.server.ClientState.*;
+
 class InputParser {
 	HashMap<String, Command> commands = new HashMap<>();
-
-	Command command;
-	String arguments;
 
 	void addCommand(Command command) {
 		commands.put(command.getName(), command);
 	}
 
-	void evaluateInput(String input) {
+	String evaluate(ClientState state, String input) throws Exception {
 		String sanitizedInput = input.replaceAll("\\p{C}", ""); // strip non-printable characters by unicode regex
-		String inputCommand, inputArguments;
+		String commandName, arguments;
+		Command command;
 
 		String pattern = "^\\s*(/([^\\s]*)\\s*)?(.*)\\s*";
 		Pattern regex = Pattern.compile(pattern);
 		Matcher matcher = regex.matcher(sanitizedInput);
 		if (matcher.find()) {
-			inputCommand = matcher.group(2);
-			inputArguments = matcher.group(3);
-			if (inputCommand == null || inputCommand.equals("")) {
-				inputCommand = "no";
+			commandName = matcher.group(2);
+			arguments = matcher.group(3);
+			if (commandName == null || commandName.equals("")) {
+				commandName = "no";
 			}
 		} else {
-			inputCommand = "no";
-			inputArguments = "";
+			commandName = "no";
+			arguments = "";
 		}
 
-		inputCommand = inputCommand.toLowerCase();
+		if (commandName.equals("no")) {
+			if (state == ENTRANCE) {
+				commandName = "help";
+			} else if (state == LOGGED_IN || state == TRANSIENT) {
+				commandName	= "shout";
+			}
+		}
 
-		if (commands.containsKey(inputCommand)) {
-			command = commands.get(inputCommand);
-			arguments = inputArguments;
+		commandName = commandName.toLowerCase();
+
+		if (commands.containsKey(commandName)) {
+			if (state.accepts(commandName) || commandName.equals("no")) {
+				command = commands.get(commandName);
+			} else {
+				throw new Exception("Command not available in this context");
+			}
 		} else {
-			command = commands.get("invalid");
-			arguments = inputCommand;
+			throw new Exception("No such command");
 		}
+
+		command.argumentStringParser(arguments);
+		return command.execute();
 	}
 }
