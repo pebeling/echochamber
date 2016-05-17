@@ -3,6 +3,7 @@ package com.luminis.echochamber.server;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.UUID;
 
 class ConnectionManager {
@@ -10,69 +11,89 @@ class ConnectionManager {
 	private Server server;
 	public static int maxConnectedClients = 3;
 
-	ConnectionManager(int port, Server server) {
+	public ConnectionManager(int port, Server server) {
 		this.port = port;
 		this.server = server;
 	}
 
-	void start() {
-		try (ServerSocket serverSocket = new ServerSocket(port)) {
-			Main.logger.info("Listening for connections.");
-			boolean running = true; // TODO: set to false by exit command on server.
-			while (running) {
-				Socket socket = serverSocket.accept();
-				if (!running) break;
-				if (server.numberOfClients() >= maxConnectedClients) {
+	private class Connection implements Runnable {
+		private Socket socket;
+		private Client client;
+		private Thread connectionThread;
+
+		Connection(Socket socket, UUID id) {
+			this.socket = socket;
+
+			client = new Client(server, id);
+			connectionThread = new Thread(this, "Client " + id);
+			connectionThread.start();
+		}
+
+		@Override
+		public void run() {
+			Main.logger.info("Session started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
+			try (
 					PrintWriter toRemote = new PrintWriter(socket.getOutputStream(), true);
-					toRemote.println("Too many connections. Closing connection");
-					toRemote.close();
-					socket.close();
-					Main.logger.warn("Maximum number of simultaneous connections reached");
-				} else {
-					UUID id = Security.createUUID();
-					new Thread("Client " + id) {
-						public void run() {
-							Main.logger.info("Session started for client at " + socket.getInetAddress() + ":" + socket.getLocalPort());
-							try (
-								PrintWriter toRemote = new PrintWriter(socket.getOutputStream(), true);
-								BufferedReader fromRemote = new BufferedReader(
-										new InputStreamReader(socket.getInputStream())
-								)
-							) {
-								Client client = new Client(server);
+					BufferedReader fromRemote = new BufferedReader(
+							new InputStreamReader(socket.getInputStream())
+					)
+			) {
+				Main.logger.info("Server has opened a connection to client");
 
-								while (client.isActive()) {
-									try {
-										if (socket.getInputStream().available() > 0) { // TODO: to make read non blocking. Broke check for disconnect however
-											String input = fromRemote.readLine();
-											if (input == null) {
-												Main.logger.info("Client has disconnected from server");
-												break;
-											} else {
-												client.receive(input);
-											}
-										}
-										if (client.outputAvailable()) {
-											toRemote.println(client.emit());
-										}
-									} catch (IOException e) {
-										e.printStackTrace();
-										break;
-									}
-								}
-								Main.logger.info("Server has closed the connection to client");
-
-								client.end();
-
-								fromRemote.close();
-								toRemote.close();
-								socket.close();
-							} catch (IOException e) {
-								e.printStackTrace();
-							}
-							Main.logger.info("Session terminated");
+				while (client.isActive()) {
+					try {
+						socket.setSoTimeout(100); // socket timeout to prevent readLine() from blocking
+						if (client.outputForRemoteAvailable()) {
+							toRemote.println(client.outputForRemote());
 						}
-					}.start();
+
+						String input = fromRemote.readLine();
+						if (input == null) {
+							Main.logger.info("Client has unexpectedly disconnected from the server");
+							break;
+						} else {
+							client.inputFromRemote(input);
+						}
+					} catch (SocketTimeoutException e) {
+
+					} catch (IOException e) {
+						e.printStackTrace();
+						break;
+					}
+				}
+				client.cleanup();
+				fromRemote.close();
+				toRemote.close();
+				socket.close();
+
+				Main.logger.info("Server has closed the connection to client");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			Main.logger.info("Session terminated");
+		}
+	}
+
+	void start() {
+		Main.logger.info("Listening for connections.");
+		try (ServerSocket serverSocket = new ServerSocket(port)) {
+			serverSocket.setSoTimeout(100); // When we shutdown the ConnectionManager, we want it to end the blocking call to accept() and terminate the loop
+			while (server.isActive()) {
+				try {
+					Socket socket = serverSocket.accept();
+					if (!server.isActive()) break; // to prevent it from accepting a connection while the rest of the system is shutting down
+
+					if (server.numberOfClients() >= maxConnectedClients) {
+						PrintWriter toRemote = new PrintWriter(socket.getOutputStream(), true);
+						toRemote.println("Too many connections. Closing connection");
+						toRemote.close();
+						socket.close();
+						Main.logger.warn("Maximum number of simultaneous connections reached");
+					} else {
+						new Connection(socket, Security.createUUID());
+					}
+				} catch (SocketTimeoutException s) {
+
 				}
 			}
 			serverSocket.close();
@@ -80,5 +101,6 @@ class ConnectionManager {
 			System.err.println("Could not listen on port " + port);
 			System.exit(-1);
 		}
+		Main.logger.info("Stopped listening for connections");
 	}
 }

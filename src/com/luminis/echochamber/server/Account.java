@@ -6,7 +6,7 @@ import java.util.UUID;
 
 class Account implements Serializable {
 	private final UUID id;
-	private final Date creationDate;
+	final Date creationDate;
 	transient Client currentClient;
 
 	private String username;

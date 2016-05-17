@@ -4,9 +4,9 @@ import java.util.*;
 import static com.luminis.echochamber.server.ClientState.*;
 
 enum ClientState {
-	ENTRANCE	(new String[]{"exit", "help", "setname", "login"}),
-	TRANSIENT	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "setpwd"}),
-	LOGGED_IN	(new String[]{"exit", "help", "logout", "whisper", "shout", "users", "befriend", "unfriend", "friends", "delete", "accounts"}),
+	ENTRANCE	(new String[]{"exit", "help", "status", "setname", "login"}),
+	TRANSIENT	(new String[]{"exit", "help", "status", "logout", "whisper", "shout", "users", "setpwd"}),
+	LOGGED_IN	(new String[]{"exit", "help", "status", "logout", "whisper", "shout", "users", "befriend", "unfriend", "delete", "accounts", "shutdown"}),
 	DELETE_CONF	(new String[]{"exit", "help", "cancel", "delete"}),
 	EXIT		(new String[]{});
 
@@ -28,10 +28,12 @@ class Client {
 	private InputParser parser = new InputParser();
 	private ClientState state;
 	private Queue<String> output = new LinkedList<>();
+	public UUID id;
 	Channel connectedChannel = null;
 	Account connectedAccount = null;
 
-	Client(Server server) {
+	Client(Server server, UUID id) {
+		this.id = id;
 		this.server = server;
 		this.server.add(this);
 		registerCommands();
@@ -42,32 +44,40 @@ class Client {
 		return state != EXIT;
 	}
 
-	public void receive(String input) {
+	public void inputFromRemote(String input) {
 		try {
 			String output = parser.evaluate(state, input);
 			if (output != null) {
-				messageClient(output);
+				message(output);
 			}
 		} catch (Exception e) {
-			messageClient(e.getMessage());
+			message(e.getMessage());
 		}
 	}
 
-	String emit() {
+	boolean outputForRemoteAvailable() {
+		return ( output.peek() != null );
+	}
+	String outputForRemote() {
 		return output.poll();
 	}
 
-	boolean outputAvailable() {
-		return ( output.peek() != null );
-	}
-
-	void messageClient(String message){ // TODO temporary
+	void message(String message){ // TODO temporary
 		output.add(message);
 	}
 
-	public void end() {
-		disconnectFromChannel();
-		unSetAccount();
+	public void shutdown(String s) {
+		message(s);
+		state = EXIT;
+	}
+
+	public void cleanup() {
+		if (connectedChannel != null) {
+			disconnectFromChannel();
+		}
+		if (connectedAccount != null) {
+			unSetAccount();
+		}
 		server.remove(this);
 	}
 
@@ -84,9 +94,10 @@ class Client {
 		parser.addCommand(new shoutCommand		(this));
 		parser.addCommand(new deleteCommand		(this));
 		parser.addCommand(new cancelCommand		(this));
-		parser.addCommand(new friendsCommand	(this));
+		parser.addCommand(new statusCommand		(this));
 		parser.addCommand(new befriendCommand	(this));
 		parser.addCommand(new unfriendCommand	(this));
+		parser.addCommand(new shutdownCommand	(this.server));
 		parser.addCommand(new noCommand			());
 	}
 
@@ -233,7 +244,7 @@ class Client {
 		if (account == null){
 			return "No account with username " + arguments.get("username") + " found";
 		} else if (account.isOnline()) {
-			account.currentClient.messageClient(connectedAccount.username() + " whispers: " + arguments.get("message"));
+			account.currentClient.message(connectedAccount.username() + " whispers: " + arguments.get("message"));
 			return "You whispered a message to " + account.username();
 		} else {
 			return "User " + account.username() + " is not online";
@@ -275,8 +286,26 @@ class Client {
 		return "Delete cancelled";
 	}
 
-	String friendsCommandImp() {
-		return connectedAccount.relations.toString();
+	String status() {
+		return String.join("\n",
+				"Status: ",
+				connectedAccount == null ?
+						"not logged in" :
+						connectedAccount.isPermanent() ?
+								String.join("\n",
+										"You are logged in as permanent user '" + connectedAccount.username() + "'",
+										"\tAccount created: " + connectedAccount.creationDate,
+										"\tAccount online since: " + connectedAccount.lastLoginDate,
+										"Current channel: " + connectedChannel.toString(),
+										"Relations: ",
+										connectedAccount.relations.toString()
+								) :
+								String.join("\n",
+										"You are logged in as temporary user '" + connectedAccount.username() + "'",
+										"\tOnline since: " + connectedAccount.lastLoginDate,
+										"Current channel: " + connectedChannel.toString()
+								)
+		);
 	}
 
 	String befriendCommandImp(Map<String, String> arguments) {
@@ -301,7 +330,7 @@ class Client {
 //			return account.username() + "is not in your friend list";
 		} else {
 			connectedAccount.removeRelation(account);
-			return "You removed " + account.username() + " from your friend list";
+			return "You removed " + account.username() + " from your relations";
 		}
 	}
 }

@@ -34,17 +34,17 @@ class Channel {
 		broadcast(TextColors.colorUserName(sender.connectedAccount.username()) + "> " + message);
 	}
 
-//	synchronized private void broadcast(String messageClient, Client sender) {
+//	synchronized private void broadcast(String message, Client sender) {
 //		connectedClients.stream().filter(
 //				client -> !client.equals(sender)
 //		).forEach(
-//				client -> client.messageClient(messageClient)
+//				client -> client.message(message)
 //		);
 //	}
 
 	synchronized private void broadcast(String message) {
 		connectedClients.stream().forEach(
-				client -> client.messageClient(message)
+				client -> client.message(message)
 		);
 	}
 

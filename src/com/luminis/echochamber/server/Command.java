@@ -310,13 +310,13 @@ class cancelCommand extends Command {
 	}
 }
 
-class friendsCommand extends Command {
+class statusCommand extends Command {
 	private Client receiver;
 
-	friendsCommand (Client receiver) {
+	statusCommand (Client receiver) {
 		super(
-				"friends", 
-				"List all friends and friend request statuses.",
+				"status",
+				"Shows details for current session",
 				new String[][]{
 						{ }
 				},
@@ -326,7 +326,7 @@ class friendsCommand extends Command {
 	}
 
 	public String execute() {
-		return receiver.friendsCommandImp();
+		return receiver.status();
 	}
 }
 
@@ -381,6 +381,27 @@ class noCommand extends Command {
 	}
 
 	public String execute() {
+		return null;
+	}
+}
+
+class shutdownCommand extends Command { // TODO: for admin mode only
+	private Server receiver;
+
+	shutdownCommand (Server receiver) {
+		super(
+				"shutdown",
+				"Shutdown server",
+				new String[][]{
+						{ }
+				},
+				false
+		);
+		this.receiver = receiver;
+	}
+
+	public String execute() {
+		receiver.shutdown();
 		return null;
 	}
 }
